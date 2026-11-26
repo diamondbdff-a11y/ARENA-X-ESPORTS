@@ -725,7 +725,7 @@
         cursor: pointer;
     }
 
-    .mc-header {
+    .mc-header { position: relative;
         display: flex;
         padding: 10px;
         gap: 10px;
@@ -1465,6 +1465,14 @@
     .fab-telegram img { width: 100%; height: 100%; }
     
     .empty-msg { text-align: center; padding: 30px; color: #999; font-weight: 600; }
+    .dl-box { background:#fff; border-radius:18px; width:86%; max-width:320px; padding:24px 20px; text-align:center; position:relative; }
+    .dl-ic { width:64px; height:64px; border-radius:16px; background:linear-gradient(135deg,#ff6f00,#e53935); color:#fff; display:flex; align-items:center; justify-content:center; font-size:30px; margin:0 auto 12px; }
+    .dl-btn { display:block; width:100%; padding:13px; border:0; border-radius:12px; background:linear-gradient(90deg,#e65100,#ff9800); color:#fff; font-weight:800; font-size:16px; margin-top:16px; }
+    .dl-btn.off { background:#bbb; }
+    .dl-later { background:none; border:0; color:#888; margin-top:10px; font-size:13px; }
+    .help-card { display:flex; align-items:center; justify-content:space-between; background:#fff; border:1.5px solid #ffe0b2; border-radius:20px; padding:16px; margin:12px 0; }
+    .help-btn { background:linear-gradient(90deg,#e65100,#ff9800); color:#fff; border:0; border-radius:14px; padding:12px 18px; font-weight:800; }
+    .live-btn { display:block; width:100%; background:#e53935; color:#fff; border:0; border-radius:14px; padding:16px; font-weight:800; font-size:16px; margin-bottom:14px; }
 </style>
 </head>
 
@@ -1608,6 +1616,11 @@
                 <div id="dynamic-notice">Welcome to ARENA X ESPORTS Tournament! Join matches and win big prizes.</div>
             </div>
 
+            <div class="help-card">
+                <div><div style="font-weight:800;font-size:17px;">কোনো সাহায্য দরকার?</div><div style="font-size:13px;color:#666;margin-top:4px;"><span style="color:#4caf50;">●</span> ২৪/৭ কাস্টমার সাপোর্ট</div></div>
+                <button class="help-btn" onclick="window.openSupport()">যোগাযোগ ›</button>
+            </div>
+            <button class="live-btn" onclick="window.openSupport()">● LIVE MATCHES - এখনই দেখুন</button>
             <div class="category-title">FREE FIRE</div>
 
             <div id="dynamic-category-list" class="category-grid"></div>
@@ -2085,6 +2098,17 @@
     </div>
 </div>
 
+<div id="dl-modal" class="modal">
+    <div class="dl-box">
+        <div class="dl-ic"><i class="fab fa-android"></i></div>
+        <div style="font-weight:900;font-size:19px;">অ্যাপ ডাউনলোড করুন</div>
+        <div id="dl-text" style="color:#666;font-size:14px;margin-top:8px;line-height:1.5;"></div>
+        <div id="dl-ver" style="font-size:12px;color:#999;margin-top:6px;"></div>
+        <button id="dl-go" class="dl-btn" onclick="window.startDownload()"><i class="fas fa-download"></i> ডাউনলোড APK</button>
+        <button class="dl-later" onclick="document.getElementById('dl-modal').classList.remove('active')">পরে করব</button>
+    </div>
+</div>
+
 <!-- STARTUP POPUP MODAL -->
 <div id="startup-modal" class="modal">
     <div class="startup-modal-box">
@@ -2144,24 +2168,86 @@
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 
 <script type="module">
-    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
-    import { getDatabase, ref, set, onValue, push, update, get, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
-    import { getAuth, GoogleAuthProvider, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, onAuthStateChanged, updateProfile, updatePassword, reauthenticateWithCredential, EmailAuthProvider } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
+    // ===== LOCAL MODE: পুরাতন Firebase ডাটাবেজ বন্ধ। নিজের ডাটাবেজ তৈরি হলে এই অংশ বদলে দিন =====
+    const LS = { get(k,d){ try{ const v=localStorage.getItem(k); return v?JSON.parse(v):d; }catch(e){ return d; } }, set(k,v){ try{ localStorage.setItem(k, JSON.stringify(v)); }catch(e){} } };
+    const store = LS.get('x_db', {});
+    const listeners = [];
+    const getPath = (p) => p.split('/').filter(Boolean).reduce((o,k)=> (o && o[k]!==undefined) ? o[k] : undefined, store);
+    const snap = (p) => { const v = getPath(p); return { val: () => v===undefined ? null : JSON.parse(JSON.stringify(v)), exists: () => v!==undefined }; };
+    const persist = () => { const s = {...store}; delete s.matches; delete s.categories; delete s.app_settings; LS.set('x_db', s); };
+    const notify = () => listeners.forEach(l => l.cb(snap(l.path)));
+    const setPath = (p, v) => { const ks = p.split('/').filter(Boolean); let o = store; ks.slice(0,-1).forEach(k => { if(typeof o[k] !== 'object' || o[k]===null) o[k] = {}; o = o[k]; }); o[ks[ks.length-1]] = v; };
+    const ref = (db, path) => ({ path: path || '', key: (path||'').split('/').pop() });
+    const onValue = (r, cb) => { listeners.push({path:r.path, cb}); setTimeout(()=>cb(snap(r.path)), 0); };
+    const get = async (r) => snap(r.path);
+    const set = async (r, v) => { setPath(r.path, v); persist(); notify(); };
+    const update = async (r, v) => { Object.entries(v).forEach(([k,x]) => setPath(r.path+'/'+k, x)); persist(); notify(); };
+    const push = (r, v) => { const id = 'k' + Date.now().toString(36) + Math.random().toString(36).slice(2,6); const nr = ref(null, r.path+'/'+id); if(v !== undefined) setPath(nr.path, v), persist(), notify(); return nr; };
+    const serverTimestamp = () => Date.now();
+    const getDatabase = () => ({}); const initializeApp = () => ({});
 
-    const firebaseConfig = {
-  apiKey: "AIzaSyAA0SUgQDabA3SwCyfyqjTud9Df3vy3rVo",
-  authDomain: "khelo-bangladesh-dc52a.firebaseapp.com",
-  databaseURL: "https://khelo-bangladesh-dc52a-default-rtdb.firebaseio.com",
-  projectId: "khelo-bangladesh-dc52a",
-  storageBucket: "khelo-bangladesh-dc52a.firebasestorage.app",
-  messagingSenderId: "93267931869",
-  appId: "1:93267931869:web:1a81599f4b3cddfd316134",
-  measurementId: "G-RX091K4TEW"
-};
-    
-    const app = initializeApp(firebaseConfig);
-    const db = getDatabase(app);
-    const auth = getAuth(app);
+    // ---- লোকাল লগইন (ডেমো) ----
+    const authObj = { currentUser: null };
+    const authCbs = [];
+    const getAuth = () => authObj;
+    const userObj = (u) => u ? { uid:u.uid, email:u.email, displayName:u.displayName||'', photoURL:u.photoURL||'' } : null;
+    const emit = () => { authObj.currentUser = userObj(LS.get('x_session', null)); authCbs.forEach(cb => cb(authObj.currentUser)); };
+    const onAuthStateChanged = (a, cb) => { authCbs.push(cb); setTimeout(()=>cb(authObj.currentUser = userObj(LS.get('x_session', null))), 0); };
+    const signInWithEmailAndPassword = async (a, e, p) => { const u = LS.get('x_users', {})[e.toLowerCase()]; if(!u || u.password !== p) throw new Error('ইমেইল বা পাসওয়ার্ড ভুল'); LS.set('x_session', u); emit(); return {user:userObj(u)}; };
+    const createUserWithEmailAndPassword = async (a, e, p) => { const us = LS.get('x_users', {}); e = e.toLowerCase(); if(us[e]) throw new Error('এই ইমেইল আগে থেকেই আছে'); if(p.length < 6) throw new Error('পাসওয়ার্ড কমপক্ষে ৬ অক্ষরের দিন'); const u = {uid:'u'+Date.now().toString(36), email:e, password:p, displayName:''}; us[e] = u; LS.set('x_users', us); LS.set('x_session', u); setTimeout(emit, 0); return {user:userObj(u)}; };
+    const updateProfile = async (u, d) => { const us = LS.get('x_users', {}); const x = us[u.email]; if(x){ Object.assign(x, d); LS.set('x_users', us); LS.set('x_session', x); } emit(); };
+    const updatePassword = async (u, p) => { const us = LS.get('x_users', {}); if(us[u.email]){ us[u.email].password = p; LS.set('x_users', us); } };
+    const reauthenticateWithCredential = async (u, c) => { const x = LS.get('x_users', {})[u.email]; if(!x || x.password !== c.p) throw new Error('বর্তমান পাসওয়ার্ড ভুল'); };
+    const EmailAuthProvider = { credential: (e, p) => ({e, p}) };
+    const GoogleAuthProvider = function(){};
+    const signOut = async () => { LS.set('x_session', null); emit(); };
+
+    // ---- ডেমো ডাটা (ক্যাটাগরি + ম্যাচ) ----
+    const svgImg = (t, c1, c2) => 'data:image/svg+xml;utf8,' + encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" width="400" height="220"><defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="${c1}"/><stop offset="1" stop-color="${c2}"/></linearGradient></defs><rect width="400" height="220" fill="url(#g)"/><text x="200" y="105" font-family="Arial" font-weight="900" font-size="30" fill="#fff" text-anchor="middle">${t}</text><text x="200" y="140" font-family="Arial" font-weight="700" font-size="16" fill="#ffd54a" text-anchor="middle">FREE FIRE</text></svg>`);
+    const CATS = [
+      ['br','BR MATCH','Regular',15,'Solo,Duo,Squad','Bermuda',405,5,10,48,'#1976d2','#0d2a5c'],
+      ['brs','BR SURVIVAL','Survival',0,'Solo','Bermuda',300,5,10,48,'#e65100','#4a1a00'],
+      ['cs','Clash Squad','Clash Squad',14,'Squad','Bermuda',100,0,10,8,'#f9a825','#6a1b9a'],
+      ['cs2','CS 2 VS 2','CS 2 VS 2',5,'Duo','Bermuda',60,0,10,4,'#ef6c00','#4a148c'],
+      ['lw2','Lone Wolf 2v2','Lone Wolf',14,'Duo','Lone Wolf',60,0,10,4,'#1565c0','#c62828'],
+      ['lw1','Lone Wolf 1 Vs 1','Lone Wolf',12,'Solo','Lone Wolf',30,0,5,2,'#0d47a1','#b71c1c']
+    ];
+    function seedPublic() {
+      store.categories = {}; store.matches = {};
+      store.app_settings = Object.assign({
+        app_name: 'ARENA X ESPORTS',
+        notice: 'কম দামে ডায়মন্ড টপ আপ করতে নিচে Shop বাটনে ক্লিক করুন।',
+        apk_link: '', apk_version: '1.0', apk_text: 'আরও সহজে খেলতে আমাদের অ্যাপ ডাউনলোড করুন!'
+      }, LS.get('x_settings', {}));
+      const step = 20*60000;
+      let base = Math.ceil((Date.now() + 5*60000) / step) * step;
+      let n = 164554;
+      CATS.forEach(([id,name,mode,count,types,map,prize,kill,fee,total,c1,c2]) => {
+        store.categories[id] = { name, img: svgImg(name, c1, c2) };
+        const tp = types.split(',');
+        for(let i=0;i<count;i++){
+          const ts = base + i*step + (id==='br'?0:Math.floor(i/2)*step*0.5);
+          const key = id+'_'+i;
+          const type = tp[i % tp.length];
+          const d = new Date(ts); const p2 = x => String(x).padStart(2,'0');
+          let h = d.getHours(), ap = h>=12?'PM':'AM'; h = h%12 || 12;
+          const parts = Object.keys((store.match_participants||{})[key]||{}).length;
+          const full = (id==='br' && i===0);
+          const joinedBase = full ? total : Math.min(total-1, (i*7+3) % total);
+          store.matches[key] = {
+            categoryId:id, title: (id==='br' ? type+' Time' : name), type, entry:fee, total, joined: Math.min(total, joinedBase + parts),
+            total_prize: prize, per_kill: kill, map, timestamp: ts, status:'Upcoming', match_no: n++,
+            time: `${d.getFullYear()}-${p2(d.getMonth()+1)}-${p2(d.getDate())} at ${p2(h)}:${p2(d.getMinutes())} ${ap}`,
+            room_id:'', room_pass:'', prizes: id==='br' ? [50,40,30,20,10] : null
+          };
+        }
+      });
+    }
+    seedPublic();
+    window.__xSaveSettings = (o) => { LS.set('x_settings', o); };
+    // ===== LOCAL MODE শেষ =====
+
+    const app = initializeApp(); const db = getDatabase(app); const auth = getAuth(app);
 
     let currentUser = null;
     let depositBal = 0, winningBal = 0;
@@ -2204,6 +2290,20 @@
     window.openResultDetails = openResultDetails;
     window.closeJoinPage = closeJoinPage;
 
+
+    let apkLink = '';
+    window.startDownload = () => { if(apkLink) window.open(apkLink, '_blank'); document.getElementById('dl-modal').classList.remove('active'); };
+    function showDownloadPopup(d) {
+        const standalone = window.matchMedia('(display-mode: standalone)').matches || navigator.standalone;
+        if(standalone || sessionStorage.getItem('dl_seen')) return;
+        apkLink = (d && d.apk_link) || '';
+        document.getElementById('dl-text').innerText = (d && d.apk_text) || 'আরও সহজে খেলতে আমাদের অ্যাপ ডাউনলোড করুন!';
+        document.getElementById('dl-ver').innerText = (d && d.apk_version) ? 'ভার্সন ' + d.apk_version : '';
+        const b = document.getElementById('dl-go');
+        if(!apkLink){ b.classList.add('off'); b.innerText = 'লিংক শীঘ্রই আসছে'; b.onclick = null; }
+        sessionStorage.setItem('dl_seen', '1');
+        setTimeout(() => document.getElementById('dl-modal').classList.add('active'), 3600);
+    }
     window.onload = () => { initData(); };
 
     function initData() {
@@ -2257,6 +2357,7 @@
             if(d) {
                 if(d.app_name) document.getElementById('splash-app-name').innerText = d.app_name;
                 if(d.app_logo) document.getElementById('splash-logo').src = d.app_logo;
+                showDownloadPopup(d);
                 if(d.notice) document.getElementById('dynamic-notice').innerText = d.notice;
                 if(d.bkash_number) document.getElementById('bkash-num-display').innerText = d.bkash_number;
                 if(d.nagad_number) document.getElementById('nagad-num-display').innerText = d.nagad_number;
@@ -2475,6 +2576,7 @@
         return `
         <div class="match-card" onclick="${type==='result' ? `window.openResultDetails('${m.dbKey}')` : `window.openMatchDetails('${m.dbKey}')`}">
             <div class="mc-header">
+                ${m.match_no ? `<div style="position:absolute;top:0;right:0;background:#f57c00;color:#fff;font-size:12px;font-weight:800;padding:3px 8px;border-radius:0 0 0 6px;">#${m.match_no}</div>` : ''}
                 <img src="${catImg}" class="mc-thumb">
                 <div class="mc-header-info">
                     <div class="mc-title-row">${m.title} | Mobile | Regular</div>
@@ -2528,7 +2630,7 @@
                 </div>
                 ${type !== 'result' ? `
                 <div class="btn-details" onclick="event.stopPropagation(); window.openPrizePool('${m.dbKey}')">
-                    <i class="fas fa-trophy"></i> Prize Details <i class="fas fa-chevron-down"></i>
+                    <i class="fas fa-trophy"></i> Total Prize Details <i class="fas fa-chevron-down"></i>
                 </div>` : ''}
             </div>
 
@@ -2675,11 +2777,12 @@
          if(m.prize_desc) {
              c.innerHTML = `<div style="text-align:left; font-size:14px; color:#333; line-height:1.6;">${m.prize_desc.replace(/\n/g, '<br>')}</div>`;
          } else {
-             const total = m.total_prize;
-             const w = Math.floor(total * 0.4);
-             const s = Math.floor(total * 0.2);
-             const t = Math.floor(total * 0.1);
-             c.innerHTML = `<div class="prize-row"><span class="prize-icon">👑</span> Winner - ${w} Taka</div><div class="prize-row"><span class="prize-icon">🥈</span> 2nd Position - ${s} Taka</div><div class="prize-row"><span class="prize-icon">🥉</span> 3rd Position - ${t} Taka</div><div class="prize-row"><span class="prize-icon">🏅</span> 4th Position - 20 Taka</div><div class="prize-row"><span class="prize-icon">🏅</span> 5th Position - 10 Taka</div><div class="prize-row"><span class="prize-icon">🔥</span> Per Kill : Based on Match</div><div class="prize-row"><span class="prize-icon">🏆</span> Total Prize Pool: ${total} Taka</div>`;
+             const pz = m.prizes || [Math.floor(m.total_prize*0.4), Math.floor(m.total_prize*0.2), Math.floor(m.total_prize*0.1)];
+             const ic = ['👑','🥈','🥉','🥇','🏅'], nm = ['Winner','2nd Position','3rd Position','4th Position','5th Position'];
+             let h = pz.map((x,k)=>`<div class="prize-row"><span class="prize-icon">${ic[k]||'🏅'}</span> ${nm[k]} - ${x} Taka</div>`).join('');
+             if(m.per_kill) h += `<div class="prize-row"><span class="prize-icon">🔥</span> Per Kill : ${m.per_kill} Taka</div>`;
+             h += `<div class="prize-row"><span class="prize-icon">🏆</span> Total Prize Pool: ${m.total_prize} Taka</div>`;
+             c.innerHTML = h;
          }
          document.getElementById('prize-modal').classList.add('active');
     }
@@ -3028,12 +3131,12 @@
             document.querySelectorAll('.match-countdown').forEach(e => {
                  const t = parseInt(e.dataset.time);
                  const diff = t - new Date().getTime();
-                 if(diff < 0) e.innerText = "Match Started";
+                 if(diff < 0) e.innerHTML = '<i class="far fa-clock"></i> MATCH STARTED';
                  else {
                      const h = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
                      const m = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
                      const s = Math.floor((diff % (1000 * 60)) / 1000);
-                     e.innerText = `Starts In: ${h}h:${m}m:${s}s`;
+                     const p=x=>String(x).padStart(2,'0'); e.innerHTML = `<i class="far fa-clock"></i> STARTS IN - <b>${h>0?p(h)+'h:':''}${p(m)}m:${p(s)}s</b>`;
                  }
             });
         }, 1000);
