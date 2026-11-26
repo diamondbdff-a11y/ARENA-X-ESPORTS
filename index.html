@@ -2219,19 +2219,23 @@
     const APK_LINK     = '';   // অ্যাপ (APK) ডাউনলোডের সরাসরি লিংক
     const APK_VERSION  = '1.0';
     // =====================================================================
+    // ছবির ফাইল GitHub-এর images ফোল্ডারে থাকবে। ছবি বদলাতে ওই ফাইল বদলান বা এখানে নতুন লিংক দিন।
+    const CAT_IMG = { br:'images/br-match.jpg', brs:'images/br-survival.jpg', cs:'images/clash-squad.jpg', cs2:'images/cs-2v2.jpg', lw2:'images/lone-wolf-2v2.jpg', lw1:'images/lone-wolf-1v1.jpg' };
+    const BANNER_IMG = ['images/banner1.jpg','images/banner2.jpg','images/banner3.jpg'];
+    window.addEventListener('error', e => { const t = e.target; if(t && t.tagName === 'IMG' && !t.dataset.fb){ t.dataset.fb = 1; t.src = svgImg('IMAGE','#455a64','#1c2a30'); } }, true);
     function seedPublic() {
       store.categories = {}; store.matches = {};
       store.app_settings = Object.assign({
         app_name: 'ARENA X ESPORTS',
         notice: 'কম দামে ডায়মন্ড টপ আপ করতে নিচে Shop বাটনে ক্লিক করুন।',
-        banners: { b1:{img:bannerImg('ARENA X ESPORTS','Join matches and win big prizes','#e65100','#4a148c'), link:''}, b2:{img:bannerImg('FREE FIRE TOURNAMENT','প্রতিদিন নতুন ম্যাচ','#1565c0','#0d2a5c'), link:''}, b3:{img:bannerImg('LONE WOLF','1 VS 1 / 2 VS 2','#c62828','#311b92'), link:''} },
+        banners: { b1:{img:BANNER_IMG[0], link:''}, b2:{img:BANNER_IMG[1], link:''}, b3:{img:BANNER_IMG[2], link:''} },
         apk_link: APK_LINK, apk_version: APK_VERSION, support_link: SUPPORT_LINK, shop_link: SHOP_LINK, apk_text: 'আরও সহজে খেলতে আমাদের অ্যাপ ডাউনলোড করুন!'
       }, LS.get('x_settings', {}));
       const step = 20*60000;
       let base = Math.ceil((Date.now() + 5*60000) / step) * step;
       let n = 164554;
       CATS.forEach(([id,name,mode,count,types,map,prize,kill,fee,total,c1,c2]) => {
-        store.categories[id] = { name, img: svgImg(name, c1, c2) };
+        store.categories[id] = { name, img: CAT_IMG[id] };
         const tp = types.split(',');
         for(let i=0;i<count;i++){
           const ts = base + i*step + (id==='br'?0:Math.floor(i/2)*step*0.5);
