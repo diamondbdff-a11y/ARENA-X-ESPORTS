@@ -188,23 +188,12 @@
 
     <!-- AUTH SCREEN -->
     <div id="auth-overlay">
-        <div class="pin-title">SECURITY ACCESS</div>
-        <div class="pin-dots" id="pin-dots">
-            <div class="dot"></div><div class="dot"></div><div class="dot"></div><div class="dot"></div><div class="dot"></div>
-        </div>
-        <div class="numpad">
-            <div class="num-key" onclick="typePin(1)">1</div>
-            <div class="num-key" onclick="typePin(2)">2</div>
-            <div class="num-key" onclick="typePin(3)">3</div>
-            <div class="num-key" onclick="typePin(4)">4</div>
-            <div class="num-key" onclick="typePin(5)">5</div>
-            <div class="num-key" onclick="typePin(6)">6</div>
-            <div class="num-key" onclick="typePin(7)">7</div>
-            <div class="num-key" onclick="typePin(8)">8</div>
-            <div class="num-key" onclick="typePin(9)">9</div>
-            <div class="num-key" style="background:transparent; border:none; cursor:default;"></div>
-            <div class="num-key" onclick="typePin(0)">0</div>
-            <div class="num-key" onclick="delPin()" style="color:var(--danger)"><i class="fas fa-backspace" style="font-size:20px;"></i></div>
+        <div class="pin-title">ADMIN LOGIN</div>
+        <div style="width:86%;max-width:340px;display:flex;flex-direction:column;gap:12px;">
+            <input id="adm-email" type="email" placeholder="Admin Email" style="padding:15px;border-radius:12px;border:1px solid #333;background:#11111a;color:#fff;font-size:16px;">
+            <input id="adm-pass" type="password" placeholder="Password" style="padding:15px;border-radius:12px;border:1px solid #333;background:#11111a;color:#fff;font-size:16px;">
+            <button onclick="adminLogin()" style="padding:15px;border:0;border-radius:12px;background:var(--primary);color:#000;font-weight:800;font-size:16px;">LOGIN</button>
+            <div id="adm-err" style="color:#ff5252;text-align:center;font-size:14px;min-height:20px;"></div>
         </div>
     </div>
 
@@ -213,7 +202,7 @@
         <div class="admin-logo">
             <div class="logo-dot"></div> ARENA X.ADMIN
         </div>
-        <div class="logout-btn" onclick="location.reload()"><i class="fas fa-power-off"></i></div>
+        <div class="logout-btn" onclick="doLogout()"><i class="fas fa-power-off"></i></div>
     </div>
 
     <!-- DASHBOARD SECTION -->
@@ -278,11 +267,11 @@
                 </div>
                 <div class="dash-text">App Download</div>
             </div>
-            <div class="dash-item" onclick="changeAdminPinPopup()">
+            <div class="dash-item" onclick="seedDemo()">
                 <div class="dash-icon-box" style="background: rgba(255, 23, 68, 0.15); color: #FF1744;">
-                    <i class="fas fa-key"></i>
+                    <i class="fas fa-database"></i>
                 </div>
-                <div class="dash-text">Change PIN</div>
+                <div class="dash-text">Demo Data</div>
             </div>
         </div>
     </section>
@@ -437,43 +426,62 @@ window.pickImg = function(id){
 };
 </script>
 <script type="module">
-        import { getDatabase, ref, set, onValue, push, update, remove, get } from "./local-db.js";
+        import { getDatabase, ref, set, onValue, push, update, remove, get, getAuth, signInWithEmailAndPassword, onAuthStateChanged, signOut } from "./local-db.js";
+        import { IMG, BAN, LOGO } from "./images.js";
         const db = getDatabase();
+        const auth = getAuth();
+        const ADMIN_EMAIL = "khelobangladeshlive344@gmail.com";
 
         let allUsers = [];
         let allCategories = [];
-        let currentAdminPin = "25809";
         let pendingWithdrawals = [];
 
-        // --- AUTH LOGIC ---
-        onValue(ref(db, 'app_settings/admin_pin'), s => {
-            // PIN ফাইলে ঠিক করা (25809); ডাটাবেসের পুরনো PIN আর ব্যবহার হবে না
-        });
-
-        let pin = "";
-        window.typePin = (n) => {
-            if(pin.length < 5) {
-                pin += n;
-                updateDots();
-            }
-            if(pin === currentAdminPin) { 
+        // --- AUTH LOGIC (Firebase ইমেইল লগইন) ---
+        let started = false;
+        onAuthStateChanged(auth, u => {
+            if(u && u.email === ADMIN_EMAIL) {
                 document.getElementById('auth-overlay').style.display = 'none';
-                initAdmin();
-            } else if (pin.length === 5) {
-                setTimeout(() => { 
-                    if(pin !== currentAdminPin) { pin = ""; updateDots(); }
-                }, 300);
+                if(!started) { started = true; initAdmin(); }
+            } else {
+                if(u) signOut(auth);
+                document.getElementById('auth-overlay').style.display = 'flex';
             }
+        });
+        window.adminLogin = async () => {
+            const e = document.getElementById('adm-email').value.trim(), p = document.getElementById('adm-pass').value;
+            const er = document.getElementById('adm-err'); er.innerText = '';
+            if(!e || !p) { er.innerText = 'ইমেইল ও পাসওয়ার্ড দিন'; return; }
+            try { await signInWithEmailAndPassword(auth, e, p); }
+            catch(x) { er.innerText = 'লগইন হয়নি: ইমেইল বা পাসওয়ার্ড ভুল'; }
         };
-        window.delPin = () => { pin = pin.slice(0, -1); updateDots(); };
-        
-        function updateDots() {
-            const dots = document.querySelectorAll('.dot');
-            dots.forEach((d, i) => {
-                if(i < pin.length) d.classList.add('filled');
-                else d.classList.remove('filled');
-            });
-        }
+        window.doLogout = () => signOut(auth).then(() => location.reload());
+
+        // --- ডেমো ডাটা বসানো (ক্যাটাগরি, ব্যানার, লোগো, ম্যাচ) ---
+        window.seedDemo = async () => {
+            const r = await Swal.fire({ title:'ডেমো ডাটা বসাবেন?', text:'ক্যাটাগরি, ব্যানার, লোগো বসবে (যা আগে নেই শুধু সেগুলো)। ম্যাচও বসাতে চাইলে "ম্যাচসহ" চাপুন।', icon:'question', showDenyButton:true, showCancelButton:true, confirmButtonText:'ম্যাচসহ', denyButtonText:'ম্যাচ ছাড়া', cancelButtonText:'বাতিল' });
+            if(r.isDismissed) return;
+            const CATS = [['br','BR MATCH',15,'Solo,Duo,Squad','Bermuda',405,5,10,48],['brs','BR SURVIVAL',0,'Solo','Bermuda',300,5,10,48],['cs','Clash Squad',14,'Squad','Bermuda',100,0,10,8],['cs2','CS 2 VS 2',5,'Duo','Bermuda',60,0,10,4],['lw2','Lone Wolf 2v2',14,'Duo','Lone Wolf',60,0,10,4],['lw1','Lone Wolf 1 Vs 1',12,'Solo','Lone Wolf',30,0,5,2]];
+            try {
+                const cs = (await get(ref(db,'categories'))).val();
+                if(!cs) { const o = {}; CATS.forEach(c => o[c[0]] = {name:c[1], img:IMG[c[0]]}); await set(ref(db,'categories'), o); }
+                const st = (await get(ref(db,'app_settings'))).val() || {};
+                const up = {};
+                if(!st.app_name) up.app_name = 'ARENA X ESPORTS';
+                if(!st.app_logo) up.app_logo = LOGO;
+                if(!st.notice) up.notice = 'কম দামে ডায়মন্ড টপ আপ করতে নিচে Shop বাটনে ক্লিক করুন।';
+                if(!st.bkash_number) up.bkash_number = '01923493618';
+                if(!st.banners) up.banners = { b1:{img:BAN[0],link:''}, b2:{img:BAN[1],link:''}, b3:{img:BAN[2],link:''} };
+                if(Object.keys(up).length) await update(ref(db,'app_settings'), up);
+                if(r.isConfirmed) {
+                    const step = 20*60000, base = Math.ceil((Date.now()+5*60000)/step)*step, p2 = x => String(x).padStart(2,'0'), m = {}; let n = 164554;
+                    CATS.forEach(([id,name,count,types,map,prize,kill,fee,total]) => { const tp = types.split(',');
+                        for(let i=0;i<count;i++){ const ts = base+i*step, d = new Date(ts); let h = d.getHours(); const ap = h>=12?'PM':'AM'; h = h%12||12; const type = tp[i%tp.length];
+                            m['demo_'+id+'_'+i] = { categoryId:id, title:(id==='br'?type+' Time':name), type, entry:fee, total, joined:0, total_prize:prize, per_kill:kill, map, timestamp:ts, status:'Upcoming', match_no:n++, time:`${d.getFullYear()}-${p2(d.getMonth()+1)}-${p2(d.getDate())} at ${p2(h)}:${p2(d.getMinutes())} ${ap}`, room_id:'', room_pass:'' }; } });
+                    await update(ref(db,'matches'), m);
+                }
+                Swal.fire({icon:'success', title:'হয়ে গেছে', timer:1500, showConfirmButton:false});
+            } catch(e) { Swal.fire('Error', e.message, 'error'); }
+        };
 
         // --- NAVIGATION ---
         window.navTo = (id) => {
