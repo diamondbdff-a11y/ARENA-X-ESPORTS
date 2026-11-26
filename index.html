@@ -1333,6 +1333,24 @@
     .warning-popup-icon { font-size: 40px; color: #FF5722; margin-bottom: 15px; }
     .warning-popup-btn { background: #FF5722; color: white; border: none; padding: 10px 25px; border-radius: 5px; font-weight: bold; margin-top: 15px; cursor: pointer; }
 
+
+    /* --- Match number badge --- */
+    .match-card { position: relative; }
+    .mc-header-info { padding-top: 14px; }
+    .mc-badge { position: absolute; top: 0; right: 0; background: #F57C00; color: #fff; font-weight: 800; font-size: 12px; padding: 4px 9px; border-bottom-left-radius: 6px; }
+    .btn-join-main.full { background: #fff; color: #1a3a8f; border-color: #1a3a8f; opacity: .85; pointer-events: none; letter-spacing: .5px; }
+
+    /* --- APK download popup --- */
+    #apk-modal { z-index: 4000; }
+    .apk-box { background: #fff; width: 88%; max-width: 330px; border-radius: 18px; padding: 26px 22px 20px; text-align: center; position: relative; box-shadow: 0 12px 40px rgba(0,0,0,.35); }
+    .apk-icon { width: 72px; height: 72px; border-radius: 18px; object-fit: cover; margin: 0 auto 12px; display: block; background: #f3f3f3; box-shadow: 0 4px 12px rgba(0,0,0,.15); }
+    .apk-title { font-size: 19px; font-weight: 900; color: #222; margin-bottom: 4px; }
+    .apk-ver { font-size: 12px; color: #888; margin-bottom: 12px; }
+    .apk-text { font-size: 14px; color: #555; line-height: 1.6; margin-bottom: 18px; }
+    .apk-btn { display: block; width: 100%; background: #ff6d00; color: #fff; font-weight: 800; font-size: 16px; padding: 13px; border: none; border-radius: 30px; cursor: pointer; text-decoration: none; }
+    .apk-btn.off { background: #bbb; pointer-events: none; }
+    .apk-later { background: none; border: none; color: #888; font-size: 13px; margin-top: 12px; padding: 6px 10px; cursor: pointer; }
+
     .startup-modal-box { background: white; border-radius: 15px; padding: 25px; width: 85%; max-width: 320px; text-align: left; position: relative; }
     .startup-content { font-size: 14px; color: #333; line-height: 1.6; margin-bottom: 20px; }
     .startup-btn { background: #ff9800; color: white; font-weight: 800; font-size: 16px; width: 100%; padding: 12px; border: none; border-radius: 30px; cursor: pointer; }
@@ -2085,6 +2103,18 @@
     </div>
 </div>
 
+<!-- APK DOWNLOAD POPUP -->
+<div id="apk-modal" class="modal">
+    <div class="apk-box">
+        <img id="apk-icon" class="apk-icon" alt="">
+        <div class="apk-title" id="apk-title">অ্যাপ ডাউনলোড করুন</div>
+        <div class="apk-ver" id="apk-ver"></div>
+        <div class="apk-text" id="apk-text"></div>
+        <a id="apk-btn" class="apk-btn off" href="#" rel="noopener"><i class="fas fa-download"></i> ডাউনলোড করুন</a>
+        <button class="apk-later" onclick="document.getElementById('apk-modal').classList.remove('active')">পরে করব</button>
+    </div>
+</div>
+
 <!-- STARTUP POPUP MODAL -->
 <div id="startup-modal" class="modal">
     <div class="startup-modal-box">
@@ -2144,24 +2174,268 @@
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 
 <script type="module">
-    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
-    import { getDatabase, ref, set, onValue, push, update, get, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
-    import { getAuth, GoogleAuthProvider, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, onAuthStateChanged, updateProfile, updatePassword, reauthenticateWithCredential, EmailAuthProvider } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
+    /* =====================================================================
+       OFFLINE / LOCAL MODE
+       পুরাতন Firebase ডাটাবেজ বন্ধ করা হয়েছে। এখন সব ডাটা ব্রাউজারের ভেতরে (ডেমো)।
+       নতুন ডাটাবেজ বানানো হলে শুধু এই অংশটা বাদ দিয়ে নতুন ডাটাবেজের কানেকশন বসাতে হবে।
+       ===================================================================== */
+    const DEFAULT_APK_LINK = "";   // <-- APK ডাইরেক্ট লিংক এখানে বসান (অথবা অ্যাডমিন প্যানেলের app_settings.apk_link থেকে আসবে)
+    const APP_NAME = "ARENA X ESPORTS";
 
-    const firebaseConfig = {
-  apiKey: "AIzaSyAA0SUgQDabA3SwCyfyqjTud9Df3vy3rVo",
-  authDomain: "khelo-bangladesh-dc52a.firebaseapp.com",
-  databaseURL: "https://khelo-bangladesh-dc52a-default-rtdb.firebaseio.com",
-  projectId: "khelo-bangladesh-dc52a",
-  storageBucket: "khelo-bangladesh-dc52a.firebasestorage.app",
-  messagingSenderId: "93267931869",
-  appId: "1:93267931869:web:1a81599f4b3cddfd316134",
-  measurementId: "G-RX091K4TEW"
-};
-    
-    const app = initializeApp(firebaseConfig);
+    const STORE_KEY = 'axe_local_store_v1';
+    const AUTH_KEY  = 'axe_local_auth_v1';
+    const SESS_KEY  = 'axe_local_session_v1';
+    const PERSIST_KEYS = ['users', 'transactions', 'withdraw_requests', 'Auto Pay'];
+
+    const pad2 = n => String(n).padStart(2, '0');
+    function fmtTime(ts) {
+        const d = new Date(ts);
+        let h = d.getHours(); const ap = h >= 12 ? 'PM' : 'AM'; h = h % 12 || 12;
+        return `${d.getFullYear()}-${pad2(d.getMonth()+1)}-${pad2(d.getDate())} at ${pad2(h)}:${pad2(d.getMinutes())} ${ap}`;
+    }
+    const clone = v => (v === undefined ? undefined : JSON.parse(JSON.stringify(v)));
+
+    // ছবি না থাকা পর্যন্ত রঙিন প্লেসহোল্ডার কভার। পরে অ্যাডমিন প্যানেল থেকে আসল ছবি বসবে।
+    function svgCover(title, sub, c1, c2, w = 600, h = 340) {
+        const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}" viewBox="0 0 ${w} ${h}"><defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="${c1}"/><stop offset="1" stop-color="${c2}"/></linearGradient></defs><rect width="${w}" height="${h}" fill="url(#g)"/><text x="${w/2}" y="${h*0.34}" text-anchor="middle" font-family="Arial,sans-serif" font-size="${h*0.07}" font-weight="700" fill="#fff" fill-opacity=".8" letter-spacing="3">${sub}</text><text x="${w/2}" y="${h*0.58}" text-anchor="middle" font-family="Arial Black,Arial,sans-serif" font-size="${h*0.15}" font-weight="900" fill="#fff" stroke="#000" stroke-opacity=".35" stroke-width="4" paint-order="stroke">${title}</text></svg>`;
+        return 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svg);
+    }
+
+    const NAMES = ['Sakib','Rafi','Tamim','Nayeem','Shuvo','Rony','Arif','Hasan','Jisan','Tanvir','Mahin','Sabbir','Fahim','Imran','Rakib','Sohan','Emon','Nirob','Zihad','Mehedi','Siam','Anik','Tushar','Rahat','Kabir','Parvez','Shanto','Mamun','Riad','Sumon'];
+    const TAGS  = ['FF','YT','BD','Pro','King','X','Gamer','Op','Killer','Boss'];
+
+    function buildSeed(saved) {
+        const now = Date.now();
+        const cats = {
+            br_match:     { name: 'BR MATCH',         img: svgCover('BR MATCH', 'FREE FIRE', '#1e88e5', '#0d47a1') },
+            br_survival:  { name: 'BR SURVIVAL',      img: svgCover('BR SURVIVAL', 'FREE FIRE', '#ef6c00', '#bf360c') },
+            clash_squad:  { name: 'Clash Squad',      img: svgCover('CLASH SQUAD', 'FREE FIRE', '#f9a825', '#6a1b9a') },
+            cs_2v2:       { name: 'CS 2 VS 2',        img: svgCover('2 VS 2', 'FREE FIRE', '#d81b60', '#4527a0') },
+            lone_2v2:     { name: 'Lone Wolf 2v2',    img: svgCover('LONE WOLF 2v2', 'FREE FIRE', '#1565c0', '#c62828') },
+            lone_1v1:     { name: 'Lone Wolf 1 Vs 1', img: svgCover('LONE WOLF 1v1', 'FREE FIRE', '#283593', '#b71c1c') }
+        };
+
+        // [categoryId, কয়টা ম্যাচ, প্রথম ম্যাচ কত মিনিট পরে, ধাপ (মিনিট), নিয়ম]
+        const rules = [
+            { cat: 'br_match',    count: 15, first: 10, step: 20, mk: i => i % 2 === 0
+                ? { title: 'Solo Time', type: 'Solo', total: 48, entry: 10, prize: 405, kill: 5, map: 'Bermuda', prizes: [50,40,30,20,10] }
+                : { title: 'Duo Time',  type: 'Duo',  total: 48, entry: 10, prize: 405, kill: 5, map: 'Bermuda', prizes: [50,40,30,20,10] } },
+            { cat: 'br_survival', count: 0,  first: 15, step: 30, mk: i => null },
+            { cat: 'clash_squad', count: 14, first: 15, step: 25, mk: i => ({ title: 'Clash Squad 4 vs 4', type: 'Squad', total: 8, entry: 20, prize: 140, kill: 0, map: 'Bermuda', prizes: [140] }) },
+            { cat: 'cs_2v2',      count: 5,  first: 20, step: 40, mk: i => ({ title: 'CS 2 vs 2', type: 'Duo', total: 4, entry: 20, prize: 36, kill: 0, map: 'Bermuda', prizes: [36] }) },
+            { cat: 'lone_2v2',    count: 14, first: 12, step: 20, mk: i => ({ title: 'Lone Wolf 2v2', type: 'Duo', total: 4, entry: 10, prize: 18, kill: 0, map: 'Lone Wolf', prizes: [18] }) },
+            { cat: 'lone_1v1',    count: 12, first: 8,  step: 20, mk: i => ({ title: 'Lone Wolf 1v1', type: 'Solo', total: 2, entry: 10, prize: 18, kill: 0, map: 'Lone Wolf', prizes: [18] }) }
+        ];
+
+        const joinedMap = (saved && saved.joinedMap) || {};
+        const matches = {}, parts = {};
+        let no = 164554, botN = 0;
+        rules.forEach(r => {
+            for (let i = 0; i < r.count; i++) {
+                const d = r.mk(i);
+                const key = `${r.cat}_${pad2(i+1)}`;
+                // প্রথম ৬টা কাছাকাছি সময়ে, বাকিগুলো পরে পরে
+                const mins = r.first + (i < 6 ? i * r.step : 5 * r.step + (i - 5) * r.step * 2.5);
+                const ts = Math.round((now + mins * 60000) / 60000) * 60000;
+                let base = i === 0 ? d.total : Math.min(d.total, (i * 5 + 2) % (d.total + 1));
+                if (r.cat === 'br_match' && i === 1) base = 28;
+                const joined = joinedMap[key] !== undefined ? joinedMap[key] : base;
+                matches[key] = {
+                    match_no: no++, title: d.title, mode: 'Regular', categoryId: r.cat, type: d.type,
+                    entry: d.entry, total_prize: d.prize, per_kill: d.kill, map: d.map, prizes: d.prizes,
+                    joined, total: d.total, status: 'Upcoming', timestamp: ts, time: fmtTime(ts),
+                    room_id: '', room_pass: ''
+                };
+                // ডেমো প্লেয়ার লিস্ট
+                const list = {};
+                for (let p = 0; p < base; p++, botN++) {
+                    list['b' + p] = { ign: `${NAMES[botN % NAMES.length]}_${TAGS[(botN * 7) % TAGS.length]}${(botN * 13) % 100}`, joinedBy: 'bot', kills: 0, win: 0 };
+                }
+                parts[key] = list;
+            }
+        });
+
+        // আগে ইউজার যে ম্যাচে জয়েন করেছে সেগুলো ফিরিয়ে আনি
+        if (saved && saved.userParts) {
+            Object.entries(saved.userParts).forEach(([mk, list]) => {
+                if (!parts[mk]) return;
+                Object.entries(list).forEach(([pk, v]) => { parts[mk][pk] = v; });
+            });
+        }
+
+        const data = {
+            categories: cats,
+            matches,
+            match_participants: parts,
+            app_settings: {
+                app_name: APP_NAME,
+                notice: 'কম দামে ডায়মন্ড টপ আপ করতে নিচে Shop বাটনে ক্লিক করুন।',
+                bkash_number: '01XXXXXXXXX', nagad_number: '01XXXXXXXXX', rocket_number: '01XXXXXXXXX',
+                show_popup: false,
+                apk_popup_enabled: true,
+                apk_link: DEFAULT_APK_LINK,
+                apk_version: '1.0',
+                apk_popup_text: 'আমাদের অ্যাপ ইনস্টল করুন। ম্যাচ, রুম আইডি আর ওয়ালেট এক জায়গায়, আরও দ্রুত।',
+                banners: {
+                    b1: { img: svgCover('JOIN & WIN', 'DAILY MATCHES', '#ff6f00', '#d50000', 800, 300) },
+                    b2: { img: svgCover('FAST WITHDRAW', 'bKash · Nagad · Rocket', '#00897b', '#1a237e', 800, 300) },
+                    b3: { img: svgCover('24/7 SUPPORT', 'WE ARE ALWAYS HERE', '#6a1b9a', '#e91e63', 800, 300) }
+                }
+            },
+            notifications: {
+                n1: { title: 'স্বাগতম 🎉', body: 'ম্যাচ জয়েন করুন আর জিতে নিন প্রাইজ।' }
+            }
+        };
+        PERSIST_KEYS.forEach(k => { if (saved && saved[k]) data[k] = saved[k]; });
+        return data;
+    }
+
+    // ---------- লোকাল ডাটাবেজ (Firebase-এর মতো একই ফাংশন) ----------
+    const LocalDB = (() => {
+        let saved = null;
+        try { saved = JSON.parse(localStorage.getItem(STORE_KEY)); } catch (e) {}
+        let data = buildSeed(saved);
+        let listeners = [];
+        let timer = null;
+
+        const split = p => String(p).split('/').filter(Boolean);
+        function getAt(path) {
+            let n = data;
+            for (const k of split(path)) { if (n === null || typeof n !== 'object') return undefined; n = n[k]; }
+            return n;
+        }
+        function setAt(path, val) {
+            const ks = split(path);
+            if (!ks.length) { data = val; return; }
+            let n = data;
+            for (let i = 0; i < ks.length - 1; i++) {
+                if (n[ks[i]] === null || typeof n[ks[i]] !== 'object') n[ks[i]] = {};
+                n = n[ks[i]];
+            }
+            const last = ks[ks.length - 1];
+            if (val === null || val === undefined) delete n[last]; else n[last] = clone(val);
+        }
+        function snap(path) {
+            const v = getAt(path);
+            const ks = split(path);
+            return { key: ks[ks.length - 1] || null, val: () => clone(v === undefined ? null : v), exists: () => v !== undefined && v !== null };
+        }
+        function persist() {
+            clearTimeout(timer);
+            timer = setTimeout(() => {
+                try {
+                    const out = { joinedMap: {}, userParts: {} };
+                    PERSIST_KEYS.forEach(k => { if (data[k]) out[k] = data[k]; });
+                    Object.entries(data.matches || {}).forEach(([k, m]) => { out.joinedMap[k] = m.joined || 0; });
+                    Object.entries(data.match_participants || {}).forEach(([mk, list]) => {
+                        Object.entries(list || {}).forEach(([pk, v]) => {
+                            if (v && v.joinedBy !== 'bot') { (out.userParts[mk] = out.userParts[mk] || {})[pk] = v; }
+                        });
+                    });
+                    localStorage.setItem(STORE_KEY, JSON.stringify(out));
+                } catch (e) {}
+            }, 100);
+        }
+        function notify(path) {
+            const a = split(path).join('/');
+            setTimeout(() => {
+                listeners.slice().forEach(l => {
+                    const b = split(l.path).join('/');
+                    if (a === b || a.startsWith(b + '/') || b.startsWith(a + '/') || b === '') l.cb(snap(l.path));
+                });
+            }, 0);
+        }
+        return {
+            ref: (_db, path) => ({ path: String(path || '') }),
+            get: async r => snap(r.path),
+            set: async (r, v) => { setAt(r.path, v); persist(); notify(r.path); },
+            update: async (r, v) => { Object.entries(v || {}).forEach(([k, val]) => setAt(r.path + '/' + k, val)); persist(); notify(r.path); },
+            push: (r, v) => {
+                const key = 'k' + Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
+                const path = (r.path ? r.path + '/' : '') + key;
+                if (v !== undefined) { setAt(path, v); persist(); notify(path); }
+                const p = Promise.resolve({ key, path }); p.key = key; return p;
+            },
+            onValue: (r, cb) => {
+                const l = { path: r.path, cb }; listeners.push(l);
+                setTimeout(() => cb(snap(r.path)), 0);
+                return () => { listeners = listeners.filter(x => x !== l); };
+            },
+            getAt, setAt, persist, notify
+        };
+    })();
+
+    const ref = LocalDB.ref, get = LocalDB.get, set = LocalDB.set, update = LocalDB.update, push = LocalDB.push, onValue = LocalDB.onValue;
+    const serverTimestamp = () => Date.now();
+    const initializeApp = () => ({});
+    const getDatabase = () => ({});
+
+    // ---------- লোকাল লগইন (Firebase Auth-এর বদলে) ----------
+    const authListeners = [];
+    function loadAuthUsers() { try { return JSON.parse(localStorage.getItem(AUTH_KEY)) || {}; } catch (e) { return {}; } }
+    function saveAuthUsers(u) { try { localStorage.setItem(AUTH_KEY, JSON.stringify(u)); } catch (e) {} }
+    (function seedDemoUser() {
+        const u = loadAuthUsers();
+        if (!u['demo@axe.com']) {
+            u['demo@axe.com'] = { uid: 'demo_user', email: 'demo@axe.com', password: '123456', displayName: 'Demo Player' };
+            saveAuthUsers(u);
+        }
+        if (!LocalDB.getAt('users/demo_user')) {
+            LocalDB.setAt('users/demo_user', { username: 'Demo Player', email: 'demo@axe.com', phone: '01700000000', deposit: 500, winning: 0 });
+        }
+    })();
+    const auth = { currentUser: null };
+    function publicUser(rec) { return rec ? { uid: rec.uid, email: rec.email, displayName: rec.displayName || null, photoURL: null } : null; }
+    function emitAuth() { authListeners.forEach(cb => cb(auth.currentUser)); }
+    const onAuthStateChanged = (_a, cb) => {
+        authListeners.push(cb);
+        const email = localStorage.getItem(SESS_KEY);
+        const rec = email ? loadAuthUsers()[email] : null;
+        auth.currentUser = publicUser(rec);
+        setTimeout(() => cb(auth.currentUser), 0);
+    };
+    const getAuth = () => auth;
+    const GoogleAuthProvider = function () {};
+    const EmailAuthProvider = { credential: (email, password) => ({ email, password }) };
+    const signInWithEmailAndPassword = async (_a, email, pass) => {
+        const rec = loadAuthUsers()[String(email).trim().toLowerCase()];
+        if (!rec || rec.password !== pass) throw new Error('ইমেইল বা পাসওয়ার্ড ঠিক নেই');
+        localStorage.setItem(SESS_KEY, rec.email);
+        auth.currentUser = publicUser(rec);
+        setTimeout(emitAuth, 0);
+        return { user: auth.currentUser };
+    };
+    const createUserWithEmailAndPassword = async (_a, email, pass) => {
+        const em = String(email).trim().toLowerCase();
+        const all = loadAuthUsers();
+        if (all[em]) throw new Error('এই ইমেইল দিয়ে আগেই অ্যাকাউন্ট খোলা হয়েছে');
+        if (String(pass).length < 6) throw new Error('পাসওয়ার্ড কমপক্ষে ৬ অক্ষরের দিন');
+        const rec = { uid: 'u' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6), email: em, password: pass, displayName: null };
+        all[em] = rec; saveAuthUsers(all);
+        localStorage.setItem(SESS_KEY, em);
+        auth.currentUser = publicUser(rec);
+        setTimeout(emitAuth, 60);
+        return { user: auth.currentUser };
+    };
+    const signOut = async () => { localStorage.removeItem(SESS_KEY); auth.currentUser = null; setTimeout(emitAuth, 0); };
+    const updateProfile = async (user, p) => {
+        const all = loadAuthUsers();
+        if (all[user.email] && p && p.displayName) { all[user.email].displayName = p.displayName; saveAuthUsers(all); }
+        if (p && p.displayName) user.displayName = p.displayName;
+    };
+    const reauthenticateWithCredential = async (user, cred) => {
+        const rec = loadAuthUsers()[user.email];
+        if (!rec || rec.password !== cred.password) throw new Error('বর্তমান পাসওয়ার্ড ঠিক নেই');
+    };
+    const updatePassword = async (user, np) => {
+        const all = loadAuthUsers();
+        if (all[user.email]) { all[user.email].password = np; saveAuthUsers(all); }
+    };
+    /* ===================== OFFLINE LOCAL MODE শেষ ===================== */
+
+    const app = initializeApp();
     const db = getDatabase(app);
-    const auth = getAuth(app);
+
 
     let currentUser = null;
     let depositBal = 0, winningBal = 0;
@@ -2268,6 +2542,8 @@
                 supportLink = d.support_link;
                 shopLink = d.shop_link;
 
+                showApkPopup(d);
+
                 if(d.show_popup && d.popup_text) {
                     document.getElementById('startup-popup-content').innerHTML = d.popup_text.replace(/\n/g, '<br>');
                     setTimeout(() => { document.getElementById('startup-modal').classList.add('active'); }, 1500);
@@ -2300,900 +2576,33 @@
         startTimers();
     }
 
+    // ---------- ওয়েবসাইটে ঢুকলে অ্যাপ ডাউনলোড পপআপ ----------
+    let apkPopupShown = false;
+    function showApkPopup(d) {
+        if (apkPopupShown) return;
+        if (d.apk_popup_enabled === false) return;
+        const ua = navigator.userAgent || '';
+        const isIOS = /iPhone|iPad|iPod/i.test(ua);
+        const isStandalone = (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches) || window.navigator.standalone === true;
+        const isInsideApk = /; wv\)/.test(ua) || /\bwv\b/.test(ua);
+        if (isIOS || isStandalone || isInsideApk) return; // অ্যাপের ভেতরে বা iPhone-এ দেখাবে না
+        apkPopupShown = true;
+
+        const link = d.apk_link || d.app_link || d.download_link || '';
+        const name = d.app_name || 'App';
+        document.getElementById('apk-title').innerText = name + ' অ্যাপ নামান';
+        document.getElementById('apk-ver').innerText = d.apk_version ? ('ভার্সন ' + d.apk_version) : '';
+        document.getElementById('apk-text').innerHTML = (d.apk_popup_text || 'আমাদের অ্যাপ ইনস্টল করে আরও সহজে খেলুন।').replace(/\n/g, '<br>');
+        const ic = document.getElementById('apk-icon');
+        if (d.app_logo) ic.src = d.app_logo; else ic.style.display = 'none';
+        const b = document.getElementById('apk-btn');
+        if (link) { b.href = link; b.target = '_blank'; b.classList.remove('off'); }
+        else { b.removeAttribute('href'); b.classList.add('off'); b.innerHTML = 'শীঘ্রই আসছে'; }
+        setTimeout(() => document.getElementById('apk-modal').classList.add('active'), 3600); // স্প্ল্যাশ শেষ হলে
+    }
+
     function calculateJoinedMatches() {
         userJoinedMatches = [];
         if(allParticipants && currentUser) {
             // Iterate over each match key in allParticipants
-            Object.keys(allParticipants).forEach(matchKey => {
-                const parts = Object.values(allParticipants[matchKey]);
-                // Check if current user is in the participants list for this match
-                if(parts.some(p => p.joinedBy === currentUser.uid)) {
-                    userJoinedMatches.push(matchKey);
-                }
-            });
-        }
-        
-        // Refresh UI to reflect joined status
-        if(document.getElementById('matches-view').classList.contains('active')) {
-            filterMatchTab(currentMatchFilter);
-        }
-        if(document.getElementById('tab-mymatches-view').classList.contains('active')) {
-            loadMyMatches();
-        }
-    }
-
-    function updateCounts() {
-         Object.keys(activeCategories).forEach(k => {
-             const n = rawMatches.filter(m => m.categoryId === k && m.status !== 'Finished').length;
-             const el = document.getElementById(`count-${k}`);
-             if(el) el.innerText = `${n} matches found`;
-         });
-    }
-    
-    let slideIndex = 0;
-    let slideInterval;
-    function initSlider() {
-        const slides = document.querySelectorAll('.slide');
-        const dots = document.querySelectorAll('.dot');
-        if(slides.length === 0) return;
-        if(slideInterval) clearInterval(slideInterval);
-        slideInterval = setInterval(() => {
-            slideIndex = (slideIndex + 1) % slides.length;
-            document.getElementById('banner-slider-wrapper').style.transform = `translateX(-${slideIndex * 100}%)`;
-            dots.forEach(d => d.classList.remove('active'));
-            if(dots[slideIndex]) dots[slideIndex].classList.add('active');
-        }, 3000);
-    }
-
-    function toggleLoader(show) {
-        const l = document.getElementById('global-loader');
-        if(show) l.classList.add('active'); else l.classList.remove('active');
-    }
-
-    function showTab(t) {
-        toggleLoader(true);
-        document.querySelectorAll('.tab-item').forEach(e => e.classList.remove('active'));
-        document.getElementById(`nav-${t}`).classList.add('active');
-        setTimeout(() => {
-            document.querySelectorAll('.app-section').forEach(e => e.classList.remove('active'));
-            document.getElementById(`tab-${t}-view`).classList.add('active');
-            if(['shop', 'home', 'mymatches', 'result', 'profile'].includes(t)) {
-                document.body.classList.remove('sub-page');
-                document.querySelector('.tab-bar').classList.remove('hidden');
-            }
-            if(t === 'mymatches') loadMyMatches();
-            if(t === 'result') loadResults();
-            toggleLoader(false);
-        }, 500);
-    }
-
-    function navigateSub(t) {
-        toggleLoader(true);
-        setTimeout(() => {
-            document.querySelectorAll('.app-section').forEach(e => e.classList.remove('active'));
-            document.body.classList.add('sub-page');
-            document.querySelector('.tab-bar').classList.add('hidden');
-            const targetId = t === 'wallet' ? 'wallet-view' : 
-                           t === 'add-money' ? 'add-money-view' : 
-                           t === 'withdraw' ? 'withdraw-view' :
-                           t === 'history' ? 'history-view' :
-                           t === 'notifications' ? 'notifications-view' :
-                           t === 'refer' ? 'refer-view' :
-                           t === 'edit-profile' ? 'edit-profile-view' : '';
-            if(targetId) document.getElementById(targetId).classList.add('active');
-            if(t==='wallet' && currentUser) {
-                document.getElementById('withdraw-available-wallet').innerText = winningBal;
-                document.getElementById('deposit-available-wallet').innerText = depositBal;
-            } else if(t==='withdraw' && currentUser) {
-                document.getElementById('withdraw-available').innerText = winningBal;
-            } else if(t==='history') loadHistory();
-            else if(t==='notifications') loadNotifs();
-            else if(t==='edit-profile' && currentUser) {
-                 document.getElementById('ep-username').value = currentUser.displayName || '';
-                 document.getElementById('ep-email').value = currentUser.email || '';
-            }
-            toggleLoader(false);
-        }, 500);
-    }
-
-    function selectWithdrawMethod(el, method) {
-        document.querySelectorAll('.method-card').forEach(e => e.classList.remove('active'));
-        el.classList.add('active');
-        document.getElementById('withdraw-method').value = method;
-    }
-
-    function openCategory(cid) {
-        currentActiveCategory = cid;
-        document.querySelectorAll('.app-section').forEach(e => e.classList.remove('active'));
-        document.getElementById('matches-view').classList.add('active');
-        document.body.classList.add('sub-page');
-        document.querySelector('.tab-bar').classList.add('hidden');
-        filterMatchTab('Upcoming');
-    }
-
-    function filterMatchTab(status) {
-        currentMatchFilter = status;
-        document.querySelectorAll('.m-tab').forEach(e => e.classList.remove('active'));
-        document.getElementById('mt-'+status).classList.add('active');
-        const c = document.getElementById('matches-container');
-        c.innerHTML = "";
-        let m = [];
-        if(status === 'Upcoming') m = rawMatches.filter(x => x.categoryId === currentActiveCategory && x.status === 'Upcoming');
-        else if (status === 'Ongoing') m = rawMatches.filter(x => x.categoryId === currentActiveCategory && x.status === 'Ongoing');
-        else if (status === 'Finished') m = rawMatches.filter(x => x.categoryId === currentActiveCategory && x.status === 'Finished');
-        
-        if(m.length === 0) c.innerHTML = `<div class='empty-msg'>No ${status} Matches Found</div>`;
-        else m.forEach(x => c.innerHTML += createMatchCardHTML(x, (status==='Finished' ? 'result' : 'play')));
-    }
-
-    function loadMyMatches() {
-         const c = document.getElementById('mymatches-container');
-         if(!c) return;
-         c.innerHTML = "";
-         if(!currentUser) { c.innerHTML = "<div class='empty-msg'>Login to see matches</div>"; return; }
-         
-         // Filter matches where dbKey is in userJoinedMatches
-         const m = rawMatches.filter(x => userJoinedMatches.includes(x.dbKey));
-         
-         if(m.length===0) c.innerHTML = "<div class='empty-msg'>No joined matches</div>";
-         else m.forEach(x => c.innerHTML += createMatchCardHTML(x, 'joined'));
-    }
-
-    function loadResults() {
-         const c = document.getElementById('result-container');
-         if(!c) return;
-         c.innerHTML = "";
-         const m = rawMatches.filter(x => x.status === 'Finished');
-         if(m.length===0) c.innerHTML = "<div class='empty-msg'>No results yet</div>";
-         else m.forEach(x => c.innerHTML += createMatchCardHTML(x, 'result'));
-    }
-
-    function createMatchCardHTML(m, type) {
-        const joined = m.joined || 0;
-        const total = m.total || 48;
-        const perc = Math.min((joined/total)*100, 100);
-        
-        // FIX: Use m.dbKey to check joined status uniquely
-        const isJoined = userJoinedMatches.includes(m.dbKey);
-        
-        const catImg = activeCategories[m.categoryId] ? activeCategories[m.categoryId].img : '';
-        
-        let btnJoinHTML = '';
-        if (type === 'play') {
-            if (isJoined) {
-                btnJoinHTML = `<button class="btn-join-main disabled">JOINED</button>`;
-            } else {
-                // Pass m.dbKey as the ID for joining
-                btnJoinHTML = `<button class="btn-join-main" onclick="event.stopPropagation(); window.prepJoin('${m.dbKey}', '${m.type}', ${m.entry}, '${m.dbKey}', '${m.title}')">Join</button>`;
-            }
-        } else if (type === 'joined') {
-             btnJoinHTML = `<button class="btn-join-main disabled">JOINED</button>`;
-        } else {
-             btnJoinHTML = `<button class="btn-join-main" onclick="event.stopPropagation(); window.openResultDetails('${m.dbKey}')">RESULT</button>`;
-        }
-
-        return `
-        <div class="match-card" onclick="${type==='result' ? `window.openResultDetails('${m.dbKey}')` : `window.openMatchDetails('${m.dbKey}')`}">
-            <div class="mc-header">
-                <img src="${catImg}" class="mc-thumb">
-                <div class="mc-header-info">
-                    <div class="mc-title-row">${m.title} | Mobile | Regular</div>
-                    <div class="mc-date-row">${m.time}</div>
-                </div>
-            </div>
-
-            <div class="mc-stats-grid">
-                <div class="mc-stat-box">
-                    <div class="mc-stat-label">WIN PRIZE</div>
-                    <div class="mc-stat-value">${m.total_prize} TK</div>
-                </div>
-                <div class="mc-stat-box">
-                    <div class="mc-stat-label">ENTRY TYPE</div>
-                    <div class="mc-stat-value">${m.type}</div>
-                </div>
-                <div class="mc-stat-box">
-                    <div class="mc-stat-label">ENTRY FEE</div>
-                    <div class="mc-stat-value">${m.entry} TK</div>
-                </div>
-                <div class="mc-stat-box">
-                    <div class="mc-stat-label">PER KILL</div>
-                    <div class="mc-stat-value">${m.per_kill} TK</div>
-                </div>
-                <div class="mc-stat-box">
-                    <div class="mc-stat-label">MAP</div>
-                    <div class="mc-stat-value">${m.map}</div>
-                </div>
-                <div class="mc-stat-box">
-                    <div class="mc-stat-label">VERSION</div>
-                    <div class="mc-stat-value">MOBILE</div>
-                </div>
-            </div>
-
-            ${type !== 'result' ? `
-            <div class="mc-join-row">
-                <div class="mc-progress-wrapper">
-                     <div class="mc-prog-bar"><div class="mc-prog-fill" style="width:${perc}%"></div></div>
-                     <div class="mc-spots-info">
-                         <span>Only ${Math.max(0, total-joined)} spots are left</span>
-                         <span>${joined}/${total}</span>
-                     </div>
-                </div>
-                ${btnJoinHTML}
-            </div>
-            ` : ''}
-
-            <div class="mc-details-row">
-                <div class="btn-details" onclick="event.stopPropagation(); window.checkRoom('${m.dbKey}')">
-                    <i class="fas fa-key"></i> Room Details <i class="fas fa-chevron-down"></i>
-                </div>
-                ${type !== 'result' ? `
-                <div class="btn-details" onclick="event.stopPropagation(); window.openPrizePool('${m.dbKey}')">
-                    <i class="fas fa-trophy"></i> Prize Details <i class="fas fa-chevron-down"></i>
-                </div>` : ''}
-            </div>
-
-            ${type !== 'result' ? `
-            <div class="mc-footer-timer match-countdown" data-time="${m.timestamp}">
-                <i class="far fa-clock"></i> STARTS IN - Loading...
-            </div>` : ''}
-        </div>`;
-    }
-
-    function openMatchDetails(key) {
-        const m = rawMatches.find(x => x.dbKey === key);
-        if(!m) return;
-        
-        toggleLoader(true);
-        setTimeout(() => {
-            document.querySelectorAll('.app-section').forEach(e => e.classList.remove('active'));
-            document.body.classList.add('sub-page');
-            document.querySelector('.tab-bar').classList.add('hidden');
-            document.getElementById('match-details-view').classList.add('active');
-
-            document.getElementById('md-title').innerText = m.title;
-            const timerEl = document.getElementById('md-timer');
-            timerEl.dataset.time = m.timestamp;
-            document.getElementById('md-time').innerText = "Starts In: " + m.time;
-            
-            // Populate Participants by using the match key
-            const pList = document.getElementById('md-p-list');
-            pList.innerHTML = "";
-            let parts = [];
-            
-            // Access by dbKey (which is key)
-            if(allParticipants[key]) {
-                parts = Object.values(allParticipants[key]);
-            }
-            document.getElementById('md-count').innerText = `${parts.length}/${m.total || 48}`;
-            
-            if(parts.length === 0) {
-                pList.innerHTML = `<div style="text-align:center; padding:20px; color:#999;">No participants joined yet.</div>`;
-            } else {
-                parts.forEach((p, idx) => {
-                     pList.innerHTML += `
-                     <div class="md-p-row">
-                         <div style="width:10%">${idx+1}</div>
-                         <div style="width:50%">${p.ign || 'Unknown'}</div>
-                         <div style="width:20%; text-align:center;">${p.kills || 0}</div>
-                         <div style="width:20%; text-align:right;">${p.win || 0}</div>
-                     </div>
-                     `;
-                });
-            }
-            
-            toggleLoader(false);
-        }, 500);
-    }
-    
-    function openResultDetails(key) {
-        const m = rawMatches.find(x => x.dbKey === key);
-        if(!m) return;
-        
-        toggleLoader(true);
-        setTimeout(() => {
-            document.querySelectorAll('.app-section').forEach(e => e.classList.remove('active'));
-            document.body.classList.add('sub-page');
-            document.querySelector('.tab-bar').classList.add('hidden');
-            document.getElementById('result-details-view').classList.add('active');
-            
-            const c = document.getElementById('rd-container');
-            
-            let parts = [];
-            if(allParticipants[key]) {
-                parts = Object.values(allParticipants[key]);
-                parts.sort((a,b) => (b.win || 0) - (a.win || 0));
-            }
-            
-            let winnersHTML = '';
-            let fullHTML = '';
-            
-            parts.forEach((p, idx) => {
-                const row = `
-                <div class="rd-row">
-                    <div class="col-hash">${idx+1}</div>
-                    <div class="col-name">${p.ign || 'Unknown'}</div>
-                    <div class="col-kill">${p.kills || 0}</div>
-                    <div class="col-win">৳${p.win || 0}</div>
-                </div>`;
-                
-                if(p.win > 0) winnersHTML += row;
-                fullHTML += row;
-            });
-
-            if(!winnersHTML) winnersHTML = '<div style="padding:10px; text-align:center; color:#777;">No winners declared yet</div>';
-            if(!fullHTML) fullHTML = '<div style="padding:10px; text-align:center; color:#777;">No participants</div>';
-
-            c.innerHTML = `
-            <div class="rd-card">
-                 <div class="rd-title-box">
-                     <div class="rd-main-title">${m.title} | Mobile |</div>
-                     <div class="rd-sub-title">Organized On ${m.time}</div>
-                 </div>
-                 <div class="rd-stats-row">
-                     <div class="rd-stat-item">
-                         <div>WIN PRIZE</div>
-                         <div>৳${m.total_prize}</div>
-                     </div>
-                     <div class="rd-stat-item">
-                         <div>PER KILL</div>
-                         <div>৳${m.per_kill}</div>
-                     </div>
-                     <div class="rd-stat-item">
-                         <div>ENTRY FEE</div>
-                         <div>৳${m.entry}</div>
-                     </div>
-                 </div>
-                 
-                 <div class="rd-header-blue">WINNER WINNER CHICKEN DINNER</div>
-                 <div class="rd-table-head">
-                      <div class="col-hash">#</div>
-                      <div class="col-name">Player Name</div>
-                      <div class="col-kill">Kills</div>
-                      <div class="col-win">Winning</div>
-                 </div>
-                 ${winnersHTML}
-                 
-                 <div class="rd-header-blue" style="margin-top:10px;">FULL RESULT</div>
-                 <div class="rd-table-head">
-                      <div class="col-hash">#</div>
-                      <div class="col-name">Player Name</div>
-                      <div class="col-kill">Kills</div>
-                      <div class="col-win">Winning</div>
-                 </div>
-                 ${fullHTML}
-            </div>`;
-            
-            toggleLoader(false);
-        }, 500);
-    }
-
-    function openPrizePool(key) {
-         const m = rawMatches.find(x => x.dbKey === key);
-         if(!m) return;
-         document.getElementById('prize-modal-subtitle').innerText = m.title;
-         const c = document.getElementById('prize-list-content');
-         if(m.prize_desc) {
-             c.innerHTML = `<div style="text-align:left; font-size:14px; color:#333; line-height:1.6;">${m.prize_desc.replace(/\n/g, '<br>')}</div>`;
-         } else {
-             const total = m.total_prize;
-             const w = Math.floor(total * 0.4);
-             const s = Math.floor(total * 0.2);
-             const t = Math.floor(total * 0.1);
-             c.innerHTML = `<div class="prize-row"><span class="prize-icon">👑</span> Winner - ${w} Taka</div><div class="prize-row"><span class="prize-icon">🥈</span> 2nd Position - ${s} Taka</div><div class="prize-row"><span class="prize-icon">🥉</span> 3rd Position - ${t} Taka</div><div class="prize-row"><span class="prize-icon">🏅</span> 4th Position - 20 Taka</div><div class="prize-row"><span class="prize-icon">🏅</span> 5th Position - 10 Taka</div><div class="prize-row"><span class="prize-icon">🔥</span> Per Kill : Based on Match</div><div class="prize-row"><span class="prize-icon">🏆</span> Total Prize Pool: ${total} Taka</div>`;
-         }
-         document.getElementById('prize-modal').classList.add('active');
-    }
-
-    function checkRoom(key) {
-         if(!currentUser) return;
-         
-         const m = rawMatches.find(x => x.dbKey === key);
-         if(!m) return;
-
-         // Check joined using dbKey
-         const isJoined = userJoinedMatches.includes(key);
-         
-         if(isJoined) {
-             const rId = m.room_id || '';
-             const rPass = m.room_pass || '';
-
-             if(!rId || rId === 'undefined' || rId.length < 2) {
-                 Swal.fire({
-                    icon: 'info',
-                    title: 'অপেক্ষা করুন',
-                    text: 'ম্যাচ শুরো হুয়ার ১০ মিনিট আগে দেোয়া হবে',
-                    confirmButtonText: 'ঠিক আছে'
-                 });
-             } else {
-                 document.getElementById('popup-room-id').innerText = rId;
-                 document.getElementById('popup-room-pass').innerText = rPass;
-                 document.getElementById('room-modal').classList.add('active');
-             }
-         } else {
-             document.getElementById('join-warning-modal').classList.add('active');
-         }
-    }
-
-    function prepJoin(id, type, fee, key, title) {
-         if(!currentUser) return;
-         
-         // Use the passed ID (which is now dbKey) to check
-         if(userJoinedMatches.includes(id)) {
-             Swal.fire({ icon:'warning', title:'Already Joined', text:'You have already joined this match!' });
-             return;
-         }
-         currentJoinId = id; // This is now dbKey
-         currentEntryFee = fee;
-         
-         // Setup Full Page Join UI
-         document.getElementById('join-page-title').innerText = title || "Match Joining";
-         document.getElementById('join-page-meta').innerText = new Date().toLocaleDateString(); 
-         document.getElementById('join-page-win').innerText = "???"; 
-         document.getElementById('join-page-fee').innerText = fee;
-         document.getElementById('join-page-type').innerText = type;
-
-         let slots = 1;
-         if(type && type.toLowerCase().includes('duo')) slots = 2;
-         if(type && type.toLowerCase().includes('squad')) slots = 4;
-         
-         const ic = document.getElementById('join-inputs-container');
-         ic.innerHTML = "";
-         for(let i=1; i<=slots; i++) {
-             ic.innerHTML += `<input type="text" class="join-input p-name" placeholder="Player ${i} Name (Game ID)">`;
-         }
-         
-         // Store Key for Confirm (redundant but safe)
-         document.querySelector('.join-btn-full').dataset.key = key;
-
-         // Show View
-         document.querySelectorAll('.app-section').forEach(e => e.classList.remove('active'));
-         document.body.classList.add('sub-page');
-         document.querySelector('.tab-bar').classList.add('hidden');
-         document.getElementById('join-match-view').classList.add('active');
-    }
-
-    function closeJoinPage() {
-         document.getElementById('join-match-view').classList.remove('active');
-         if(currentActiveCategory) {
-             document.getElementById('matches-view').classList.add('active');
-         } else {
-             document.getElementById('tab-home-view').classList.add('active');
-             document.body.classList.remove('sub-page');
-             document.querySelector('.tab-bar').classList.remove('hidden');
-         }
-    }
-
-    async function confirmJoin() {
-         // Double check if already joined to prevent duplicates
-         if(userJoinedMatches.includes(currentJoinId)) {
-             toggleLoader(false);
-             return Swal.fire({ icon:'warning', title:'Already Joined', text:'You have already joined this match!' });
-         }
-         
-         // Double Check AllParticipants (in case of async lag)
-         if(allParticipants[currentJoinId]) {
-             const existing = Object.values(allParticipants[currentJoinId]).find(p => p.joinedBy === currentUser.uid);
-             if(existing) {
-                 return Swal.fire({ icon:'warning', title:'Already Joined', text:'You are already in this match list!' });
-             }
-         }
-
-         const inps = document.querySelectorAll('.p-name');
-         let count = 0;
-         let names = [];
-         inps.forEach(i => { if(i.value) { count++; names.push(i.value); } });
-         if(count !== inps.length) return Swal.fire('Error', "Fill all names", 'error');
-         
-         const total = currentEntryFee * count;
-         if((depositBal + winningBal) < total) return Swal.fire('Error', "Insufficient Balance", 'error');
-         
-         const key = document.querySelector('.join-btn-full').dataset.key; // dbKey
-         let d = depositBal, w = winningBal;
-         let rem = total;
-         if(d >= rem) { d -= rem; rem = 0; }
-         else { rem -= d; d = 0; w -= rem; }
-         
-         toggleLoader(true);
-         try {
-             await update(ref(db, 'users/'+currentUser.uid), {deposit:d, winning:w});
-             
-             // Push to match_participants/MATCH_KEY
-             for(let n of names) {
-                await push(ref(db, 'match_participants/'+currentJoinId), {
-                    ign: n, joinedBy: currentUser.uid, kills:0, win:0
-                });
-             }
-             
-             // Update match count
-             const mRef = ref(db, 'matches/'+key);
-             const snap = await get(mRef);
-             const cur = (snap.val() && snap.val().joined) ? snap.val().joined : 0;
-             await update(mRef, {joined: cur + count});
-             
-             // Log Transaction
-             const tid = push(ref(db, 'transactions/'+currentUser.uid)).key;
-             await set(ref(db, 'transactions/'+currentUser.uid+'/'+tid), {
-                 type: 'Match Join', amount: total, method: 'Wallet', status: 'Success', date: new Date().toLocaleString()
-             });
-             
-             // Immediate Local Update for UI responsiveness
-             if(!userJoinedMatches.includes(currentJoinId)) {
-                 userJoinedMatches.push(currentJoinId);
-             }
-             filterMatchTab(currentMatchFilter);
-             
-             toggleLoader(false);
-             Swal.fire({
-                 icon: 'success',
-                 title: 'Joined!',
-                 text: 'You have successfully joined the match.'
-             }).then(() => {
-                 closeJoinPage();
-             });
-             
-         } catch(e) { 
-             toggleLoader(false);
-             alert(e.message); 
-         }
-    }
-
-    function saveProfile() {
-         const n = document.getElementById('ep-username').value;
-         const curP = document.getElementById('ep-pass-cur').value;
-         const newP = document.getElementById('ep-pass-new').value;
-         const conP = document.getElementById('ep-pass-con').value;
-         
-         const promises = [];
-         toggleLoader(true);
-
-         if(n && n !== currentUser.displayName) {
-             promises.push(updateProfile(currentUser, {displayName: n}).then(() => {
-                 update(ref(db, 'users/'+currentUser.uid), {username: n});
-             }));
-         }
-         
-         if(newP) {
-             if(newP !== conP) {
-                 toggleLoader(false);
-                 return Swal.fire('Error', "New passwords do not match", 'error');
-             }
-             if(!curP) {
-                 toggleLoader(false);
-                 return Swal.fire('Error', "Current password required", 'error');
-             }
-             const cred = EmailAuthProvider.credential(currentUser.email, curP);
-             promises.push(
-                 reauthenticateWithCredential(currentUser, cred)
-                 .then(() => updatePassword(currentUser, newP))
-             );
-         }
-
-         Promise.all(promises).then(() => {
-             toggleLoader(false);
-             Swal.fire('Success', "Profile Updated", 'success');
-             document.getElementById('ep-pass-cur').value = '';
-             document.getElementById('ep-pass-new').value = '';
-             document.getElementById('ep-pass-con').value = '';
-         }).catch(e => {
-             toggleLoader(false);
-             Swal.fire('Error', e.message, 'error');
-         });
-    }
-    
-    async function submitWithdraw() {
-        if (!currentUser) {
-            Swal.fire('Error', 'Please login first', 'error');
-            return;
-        }
-        
-        const amount = parseFloat(document.getElementById('withdraw-amount').value);
-        const number = document.getElementById('withdraw-number').value;
-        const method = document.getElementById('withdraw-method').value;
-        
-        // Validation
-        if (!amount || !number) {
-            Swal.fire('Error', 'Please fill all fields', 'error');
-            return;
-        }
-        
-        if (amount < 100) {
-            Swal.fire('Error', 'Minimum withdraw amount is 100 TK', 'error');
-            return;
-        }
-        
-        if (amount > winningBal) {
-            Swal.fire('Error', 'Insufficient winning balance', 'error');
-            return;
-        }
-        
-        // Show confirmation dialog
-        Swal.fire({
-            title: 'Confirm Withdraw',
-            text: `Are you sure you want to withdraw ${amount} TK to ${method} (${number})?`,
-            icon: 'question',
-            showCancelButton: true,
-            confirmButtonColor: '#00c853',
-            cancelButtonColor: '#d33',
-            confirmButtonText: 'Yes, Withdraw'
-        }).then(async (result) => {
-            if (result.isConfirmed) {
-                toggleLoader(true);
-                
-                try {
-                    // Generate unique request ID
-                    const requestId = push(ref(db, 'withdraw_requests')).key;
-                    const transactionId = push(ref(db, 'transactions/' + currentUser.uid)).key;
-                    const timestamp = new Date().toLocaleString();
-                    
-                    // 1. First deduct the amount from user's winning balance
-                    const newWinningBal = winningBal - amount;
-                    await update(ref(db, 'users/' + currentUser.uid), {
-                        winning: newWinningBal
-                    });
-                    
-                    // 2. Create withdraw request in admin panel
-                    await set(ref(db, 'withdraw_requests/' + requestId), {
-                        userId: currentUser.uid,
-                        userName: currentUser.displayName || 'Unknown',
-                        userEmail: currentUser.email,
-                        amount: amount,
-                        method: method,
-                        mobileNumber: number,
-                        status: 'pending',
-                        timestamp: timestamp,
-                        requestedAt: serverTimestamp()
-                    });
-                    
-                    // 3. Create transaction record for user
-                    await set(ref(db, 'transactions/' + currentUser.uid + '/' + transactionId), {
-                        type: 'Withdraw Request',
-                        amount: amount,
-                        method: method,
-                        number: number,
-                        status: 'Pending',
-                        date: timestamp,
-                        requestId: requestId
-                    });
-                    
-                    // 4. Clear input fields
-                    document.getElementById('withdraw-amount').value = '';
-                    document.getElementById('withdraw-number').value = '';
-                    
-                    toggleLoader(false);
-                    
-                    // 5. Show success message
-                    Swal.fire({
-                        icon: 'success',
-                        title: 'Withdraw Request Sent!',
-                        text: `Your withdraw request of ${amount} TK has been submitted successfully. Admin will process it soon.`,
-                        confirmButtonText: 'OK'
-                    }).then(() => {
-                        // Navigate back to wallet
-                        window.navigateSub('wallet');
-                    });
-                    
-                } catch (error) {
-                    toggleLoader(false);
-                    console.error('Withdraw error:', error);
-                    Swal.fire('Error', 'Failed to process withdraw request. Please try again.', 'error');
-                }
-            }
-        });
-    }
-
-    function switchPayTab(t) {
-        currentPayMethod = t;
-        document.querySelectorAll('.am-card').forEach(e=>e.classList.remove('active'));
-        document.getElementById(`tab-${t}`).classList.add('active');
-        document.querySelectorAll('.am-box').forEach(e=>e.style.display='none');
-        document.getElementById(`content-${t}`).style.display='block';
-        const btn = document.querySelector('.am-verify-btn');
-        if(t === 'bkash') btn.style.backgroundColor = '#E2136E';
-        if(t === 'rocket') btn.style.backgroundColor = '#8C3494';
-        if(t === 'nagad') btn.style.backgroundColor = '#F7941D';
-    }
-
-    function triggerVerify() { verifyAutoPay(currentPayMethod); }
-
-    async function verifyAutoPay(method) {
-        if (!currentUser) return;
-        const trxId = document.getElementById(`trx-${method}`).value.trim();
-        if (!trxId) return Swal.fire({ icon: 'warning', title: 'Oops...', text: 'Please enter Transaction ID' });
-        
-        const usedSnap = await get(ref(db, `Auto Pay/${trxId}`));
-        if (usedSnap.exists()) return Swal.fire({ icon: 'error', title: 'Failed', text: 'This TrxID has already been used!' });
-        
-        const apiSnap = await get(ref(db, 'XNXANIKPAY'));
-        let found = null;
-        if (apiSnap.exists()) Object.values(apiSnap.val()).forEach(p => { if (p.txid && p.txid.toLowerCase() === trxId.toLowerCase()) found = p; });
-        
-        if (found) {
-            const amount = parseFloat(found.amount);
-            await update(ref(db, 'users/' + currentUser.uid), { deposit: depositBal + amount });
-            await set(ref(db, `Auto Pay/${trxId}`), { amount: amount, usedBy: currentUser.uid, time: serverTimestamp() });
-            const txKey = push(ref(db, 'transactions/' + currentUser.uid)).key;
-            await set(ref(db, 'transactions/' + currentUser.uid + '/' + txKey), {
-                type: 'Deposit (Auto)', amount: amount, method: method, status: 'Success', txID: txKey, date: new Date().toLocaleString()
-            });
-            Swal.fire({ icon: 'success', title: 'Successful!', text: `Successfully added ${amount} TK!` }).then(() => {
-                document.getElementById(`trx-${method}`).value = ""; window.navigateSub('wallet');
-            });
-        } else {
-             Swal.fire({ icon: 'error', title: 'Invalid', text: 'Invalid TrxID.' });
-        }
-    }
-
-    function startTimers() {
-        setInterval(() => {
-            document.querySelectorAll('.match-countdown').forEach(e => {
-                 const t = parseInt(e.dataset.time);
-                 const diff = t - new Date().getTime();
-                 if(diff < 0) e.innerText = "Match Started";
-                 else {
-                     const h = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
-                     const m = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
-                     const s = Math.floor((diff % (1000 * 60)) / 1000);
-                     e.innerText = `Starts In: ${h}h:${m}m:${s}s`;
-                 }
-            });
-        }, 1000);
-    }
-
-    onAuthStateChanged(auth, u => {
-        if(u) {
-            currentUser = u;
-            document.getElementById('profile-name').innerText = u.displayName || 'User';
-            document.getElementById('profile-email').innerText = u.email;
-            
-            // Populate Edit Profile
-            document.getElementById('ep-name-display').innerText = u.displayName || 'User';
-            document.getElementById('ep-email-display').innerText = u.email;
-            document.getElementById('ep-username').value = u.displayName || '';
-            document.getElementById('ep-email').value = u.email;
-
-            if(u.photoURL) document.getElementById('profile-avatar').src = u.photoURL;
-            document.getElementById('profile-logout-btn').classList.remove('hidden');
-            document.getElementById('refer-code-display').innerText = "62578"; 
-            
-            // Hide Auth View, Show Home
-            document.getElementById('auth-view').classList.remove('active');
-            document.getElementById('main-content').style.display = 'block';
-            document.querySelector('.tab-bar').classList.remove('hidden');
-            showTab('home');
-            
-            // Recalculate joined matches since currentUser is now set
-            calculateJoinedMatches();
-            
-            onValue(ref(db, 'users/'+u.uid), s => {
-                const d = s.val();
-                if(d) {
-                    depositBal = d.deposit || 0;
-                    winningBal = d.winning || 0;
-                    document.getElementById('profile-bal-dep').innerText = depositBal;
-                    document.getElementById('profile-bal-win').innerText = winningBal;
-                    document.getElementById('wallet-balance-display').innerText = (depositBal+winningBal);
-                    document.getElementById('withdraw-available').innerText = winningBal;
-                    if(d.phone) document.getElementById('ep-phone').value = d.phone;
-                }
-            });
-        } else {
-            currentUser = null;
-            userJoinedMatches = []; // Clear joined status
-            // Show Auth View, Hide Main
-            document.getElementById('main-content').style.display = 'none';
-            document.querySelector('.tab-bar').classList.add('hidden');
-            document.getElementById('auth-view').classList.add('active');
-            toggleAuthMode('login');
-        }
-    });
-
-    function toggleAuthMode(mode) {
-        if(mode === 'login') {
-            document.getElementById('login-container').style.display = 'flex';
-            document.getElementById('register-container').style.display = 'none';
-        } else {
-            document.getElementById('login-container').style.display = 'none';
-            document.getElementById('register-container').style.display = 'flex';
-        }
-    }
-
-    function emailLogin() {
-         const e = document.getElementById('login-email').value;
-         const p = document.getElementById('login-pass').value;
-         if(!e || !p) return Swal.fire('Error', "Please fill all fields", 'error');
-         toggleLoader(true);
-         signInWithEmailAndPassword(auth, e, p)
-             .then(() => toggleLoader(false))
-             .catch(e => { toggleLoader(false); Swal.fire('Error', e.message, 'error'); });
-    }
-    
-    function emailRegister() {
-         const n = document.getElementById('reg-username').value;
-         const e = document.getElementById('reg-email').value;
-         const ph = document.getElementById('reg-phone').value;
-         const p = document.getElementById('reg-pass').value;
-         // reg-promo can be used if needed
-         if(!n || !e || !ph || !p) return Swal.fire('Error', "Please fill all fields", 'error');
-
-         toggleLoader(true);
-         createUserWithEmailAndPassword(auth, e, p).then((c)=> {
-             updateProfile(c.user, {displayName:n});
-             set(ref(db, 'users/'+c.user.uid), {username:n, email:e, phone:ph, deposit:0, winning:0});
-             toggleLoader(false);
-         }).catch(e=> { toggleLoader(false); Swal.fire('Error', e.message, 'error'); });
-    }
-    
-    function handleLogout() { 
-        Swal.fire({
-            title: 'Logout?',
-            text: "Are you sure you want to logout?",
-            icon: 'warning',
-            showCancelButton: true,
-            confirmButtonColor: '#3085d6',
-            cancelButtonColor: '#d33',
-            confirmButtonText: 'Yes'
-        }).then((result) => {
-            if (result.isConfirmed) {
-                signOut(auth);
-            }
-        });
-    }
-
-    function copyToClipboard(id) {
-        navigator.clipboard.writeText(document.getElementById(id).innerText);
-        Swal.fire({ icon: 'success', title: 'Copied!', text: 'Copied to clipboard', timer: 1500, showConfirmButton: false });
-    }
-    function openVideo(type) { 
-        let url = "";
-        if(type === 'addMoney') url = videoLinks.addMoney;
-        if(type === 'getRoom') url = videoLinks.getRoom;
-        if(type === 'howPlay') url = videoLinks.howPlay;
-        if(url) window.open(url, '_blank');
-    }
-    function openSupport() { if(supportLink) window.open(supportLink, '_blank'); }
-    function openShopLink() { if(shopLink) window.open(shopLink, '_blank'); }
-    
-    function loadHistory() {
-         const l = document.getElementById('history-list');
-         if(!l) return;
-         l.innerHTML = "<div style='padding:20px; text-align:center;'>Loading...</div>";
-         if(!currentUser) return;
-         onValue(ref(db, 'transactions/'+currentUser.uid), s => {
-             l.innerHTML = "";
-             const d = s.val();
-             if(d) {
-                 Object.values(d).reverse().forEach(t => {
-                     const displayTitle = t.type || "Transaction";
-                     const displayId = t.txID ? `#${t.txID.substring(0,4)}` : '#TRX';
-                     
-                     l.innerHTML += `
-                     <div class="history-card" style="border-left: 5px solid ${t.type.includes('Deposit')?'green':'red'};">
-                         <div class="hc-left">
-                             <div class="hc-title">${displayTitle}</div>
-                             <div class="hc-date">${t.date}</div>
-                             <div class="hc-amount">Won Amount : ${t.type.includes('Win') ? t.amount : 0}</div>
-                         </div>
-                         <div class="hc-right">
-                             <div class="hc-tag">${displayId}</div>
-                             <div style="font-size:10px; color:#888;">${t.status || 'Success'}</div>
-                         </div>
-                     </div>`;
-                 });
-             } else l.innerHTML = "<div class='empty-msg'>No Transactions</div>";
-         });
-    }
-    
-    function loadNotifs() {
-        const l = document.getElementById('notif-list-container');
-        if(!l) return;
-        onValue(ref(db, 'notifications'), s => {
-            l.innerHTML = "";
-            const d = s.val();
-            if(d) Object.values(d).reverse().forEach(n => {
-                l.innerHTML += `<div style="padding:15px; border-bottom:1px solid #eee; font-weight:bold;">${n.title}<br><span style="font-weight:normal; font-size:13px; color:#666;">${n.body}</span></div>`;
-            });
-        });
-    }
-</script>
-</body>
-</html>
+            Object.ke
