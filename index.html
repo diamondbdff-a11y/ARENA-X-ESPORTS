@@ -1,6 +1,10 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#0b1020">
+<link rel="icon" type="image/png" href="favicon.png">
+<link rel="apple-touch-icon" href="icon-192.png">
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>ARENA X ESPORTS</title>
@@ -1939,7 +1943,7 @@
                     <li>প্রাপক নম্বর হিসেবে নিচের এই নম্বরটি লিখুন</li>
                 </ul>
                 <div class="am-num-row">
-                    <span id="bkash-num-display">Loading...</span>
+                    <span id="bkash-num-display">01923493618</span>
                     <span style="font-weight:400; color:white; font-size:12px;">(Send Money)</span>
                     <button class="am-copy-btn" onclick="window.copyToClipboard('bkash-num-display')"><i class="far fa-copy"></i> Copy</button>
                 </div>
@@ -1958,7 +1962,7 @@
                     <li>প্রাপক নম্বর হিসেবে নিচের এই নম্বরটি লিখুন</li>
                 </ul>
                 <div class="am-num-row">
-                    <span id="rocket-num-display">Loading...</span>
+                    <span id="rocket-num-display">নাম্বার সেট করা হয়নি</span>
                     <span style="font-weight:400; color:white; font-size:12px;">(Send Money)</span>
                     <button class="am-copy-btn" onclick="window.copyToClipboard('rocket-num-display')"><i class="far fa-copy"></i> Copy</button>
                 </div>
@@ -1977,7 +1981,7 @@
                     <li>প্রাপক নম্বর হিসেবে নিচের এই নম্বরটি লিখুন</li>
                 </ul>
                 <div class="am-num-row">
-                    <span id="nagad-num-display">Loading...</span>
+                    <span id="nagad-num-display">নাম্বার সেট করা হয়নি</span>
                     <span style="font-weight:400; color:white; font-size:12px;">(Send Money)</span>
                     <button class="am-copy-btn" onclick="window.copyToClipboard('nagad-num-display')"><i class="far fa-copy"></i> Copy</button>
                 </div>
@@ -2101,7 +2105,7 @@
 <div id="dl-modal" class="modal">
     <div class="dl-box">
         <div class="dl-ic"><i class="fab fa-android"></i></div>
-        <div style="font-weight:900;font-size:19px;">অ্যাপ ডাউনলোড করুন</div>
+        <div id="dl-title" style="font-weight:900;font-size:19px;">অ্যাপ ডাউনলোড করুন</div>
         <div id="dl-text" style="color:#666;font-size:14px;margin-top:8px;line-height:1.5;"></div>
         <div id="dl-ver" style="font-size:12px;color:#999;margin-top:6px;"></div>
         <button id="dl-go" class="dl-btn" onclick="window.startDownload()"><i class="fas fa-download"></i> ডাউনলোড APK</button>
@@ -2168,96 +2172,8 @@
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 
 <script type="module">
-    // ===== LOCAL MODE: পুরাতন Firebase ডাটাবেজ বন্ধ। নিজের ডাটাবেজ তৈরি হলে এই অংশ বদলে দিন =====
-    const LS = { get(k,d){ try{ const v=localStorage.getItem(k); return v?JSON.parse(v):d; }catch(e){ return d; } }, set(k,v){ try{ localStorage.setItem(k, JSON.stringify(v)); }catch(e){} } };
-    const store = LS.get('x_db', {});
-    const listeners = [];
-    const getPath = (p) => p.split('/').filter(Boolean).reduce((o,k)=> (o && o[k]!==undefined) ? o[k] : undefined, store);
-    const snap = (p) => { const v = getPath(p); return { val: () => v===undefined ? null : JSON.parse(JSON.stringify(v)), exists: () => v!==undefined }; };
-    const persist = () => { const s = {...store}; delete s.matches; delete s.categories; delete s.app_settings; LS.set('x_db', s); };
-    const notify = () => listeners.forEach(l => l.cb(snap(l.path)));
-    const setPath = (p, v) => { const ks = p.split('/').filter(Boolean); let o = store; ks.slice(0,-1).forEach(k => { if(typeof o[k] !== 'object' || o[k]===null) o[k] = {}; o = o[k]; }); o[ks[ks.length-1]] = v; };
-    const ref = (db, path) => ({ path: path || '', key: (path||'').split('/').pop() });
-    const onValue = (r, cb) => { listeners.push({path:r.path, cb}); setTimeout(()=>cb(snap(r.path)), 0); };
-    const get = async (r) => snap(r.path);
-    const set = async (r, v) => { setPath(r.path, v); persist(); notify(); };
-    const update = async (r, v) => { Object.entries(v).forEach(([k,x]) => setPath(r.path+'/'+k, x)); persist(); notify(); };
-    const push = (r, v) => { const id = 'k' + Date.now().toString(36) + Math.random().toString(36).slice(2,6); const nr = ref(null, r.path+'/'+id); if(v !== undefined) setPath(nr.path, v), persist(), notify(); return nr; };
-    const serverTimestamp = () => Date.now();
-    const getDatabase = () => ({}); const initializeApp = () => ({});
-
-    // ---- লোকাল লগইন (ডেমো) ----
-    const authObj = { currentUser: null };
-    const authCbs = [];
-    const getAuth = () => authObj;
-    const userObj = (u) => u ? { uid:u.uid, email:u.email, displayName:u.displayName||'', photoURL:u.photoURL||'' } : null;
-    const emit = () => { authObj.currentUser = userObj(LS.get('x_session', null)); authCbs.forEach(cb => cb(authObj.currentUser)); };
-    const onAuthStateChanged = (a, cb) => { authCbs.push(cb); setTimeout(()=>cb(authObj.currentUser = userObj(LS.get('x_session', null))), 0); };
-    const signInWithEmailAndPassword = async (a, e, p) => { const u = LS.get('x_users', {})[e.toLowerCase()]; if(!u || u.password !== p) throw new Error('ইমেইল বা পাসওয়ার্ড ভুল'); LS.set('x_session', u); emit(); return {user:userObj(u)}; };
-    const createUserWithEmailAndPassword = async (a, e, p) => { const us = LS.get('x_users', {}); e = e.toLowerCase(); if(us[e]) throw new Error('এই ইমেইল আগে থেকেই আছে'); if(p.length < 6) throw new Error('পাসওয়ার্ড কমপক্ষে ৬ অক্ষরের দিন'); const u = {uid:'u'+Date.now().toString(36), email:e, password:p, displayName:''}; us[e] = u; LS.set('x_users', us); LS.set('x_session', u); setTimeout(emit, 0); return {user:userObj(u)}; };
-    const updateProfile = async (u, d) => { const us = LS.get('x_users', {}); const x = us[u.email]; if(x){ Object.assign(x, d); LS.set('x_users', us); LS.set('x_session', x); } emit(); };
-    const updatePassword = async (u, p) => { const us = LS.get('x_users', {}); if(us[u.email]){ us[u.email].password = p; LS.set('x_users', us); } };
-    const reauthenticateWithCredential = async (u, c) => { const x = LS.get('x_users', {})[u.email]; if(!x || x.password !== c.p) throw new Error('বর্তমান পাসওয়ার্ড ভুল'); };
-    const EmailAuthProvider = { credential: (e, p) => ({e, p}) };
-    const GoogleAuthProvider = function(){};
-    const signOut = async () => { LS.set('x_session', null); emit(); };
-
-    // ---- ডেমো ডাটা (ক্যাটাগরি + ম্যাচ) ----
-    const svgImg = (t, c1, c2) => 'data:image/svg+xml;utf8,' + encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" width="400" height="220"><defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="${c1}"/><stop offset="1" stop-color="${c2}"/></linearGradient></defs><rect width="400" height="220" fill="url(#g)"/><text x="200" y="105" font-family="Arial" font-weight="900" font-size="30" fill="#fff" text-anchor="middle">${t}</text><text x="200" y="140" font-family="Arial" font-weight="700" font-size="16" fill="#ffd54a" text-anchor="middle">FREE FIRE</text></svg>`);
-    const CATS = [
-      ['br','BR MATCH','Regular',15,'Solo,Duo,Squad','Bermuda',405,5,10,48,'#1976d2','#0d2a5c'],
-      ['brs','BR SURVIVAL','Survival',0,'Solo','Bermuda',300,5,10,48,'#e65100','#4a1a00'],
-      ['cs','Clash Squad','Clash Squad',14,'Squad','Bermuda',100,0,10,8,'#f9a825','#6a1b9a'],
-      ['cs2','CS 2 VS 2','CS 2 VS 2',5,'Duo','Bermuda',60,0,10,4,'#ef6c00','#4a148c'],
-      ['lw2','Lone Wolf 2v2','Lone Wolf',14,'Duo','Lone Wolf',60,0,10,4,'#1565c0','#c62828'],
-      ['lw1','Lone Wolf 1 Vs 1','Lone Wolf',12,'Solo','Lone Wolf',30,0,5,2,'#0d47a1','#b71c1c']
-    ];
-    const bannerImg = (t1, t2, c1, c2) => 'data:image/svg+xml;utf8,' + encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" width="800" height="360"><defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="${c1}"/><stop offset="1" stop-color="${c2}"/></linearGradient></defs><rect width="800" height="360" fill="url(#g)"/><text x="400" y="170" font-family="Arial" font-weight="900" font-size="54" fill="#fff" text-anchor="middle">${t1}</text><text x="400" y="225" font-family="Arial" font-weight="700" font-size="26" fill="#ffd54a" text-anchor="middle">${t2}</text></svg>`);
-    // ===== আপনার লিংক এখানে বসান (ফাঁকা থাকলে বাটন চাপলে "লিংক সেট করা হয়নি" দেখাবে) =====
-    const SUPPORT_LINK = '';   // যেমন: 'https://t.me/yourchannel' বা WhatsApp/Facebook লিংক
-    const SHOP_LINK    = '';   // ডায়মন্ড টপআপ শপের লিংক
-    const APK_LINK     = '';   // অ্যাপ (APK) ডাউনলোডের সরাসরি লিংক
-    const APK_VERSION  = '1.0';
-    // =====================================================================
-    // ছবির ফাইল GitHub-এর images ফোল্ডারে থাকবে। ছবি বদলাতে ওই ফাইল বদলান বা এখানে নতুন লিংক দিন।
-    const CAT_IMG = { br:'images/br-match.jpg', brs:'images/br-survival.jpg', cs:'images/clash-squad.jpg', cs2:'images/cs-2v2.jpg', lw2:'images/lone-wolf-2v2.jpg', lw1:'images/lone-wolf-1v1.jpg' };
-    const BANNER_IMG = ['images/banner1.jpg','images/banner2.jpg','images/banner3.jpg'];
-    window.addEventListener('error', e => { const t = e.target; if(t && t.tagName === 'IMG' && !t.dataset.fb){ t.dataset.fb = 1; t.src = svgImg('IMAGE','#455a64','#1c2a30'); } }, true);
-    function seedPublic() {
-      store.categories = {}; store.matches = {};
-      store.app_settings = Object.assign({
-        app_name: 'ARENA X ESPORTS',
-        notice: 'কম দামে ডায়মন্ড টপ আপ করতে নিচে Shop বাটনে ক্লিক করুন।',
-        banners: { b1:{img:BANNER_IMG[0], link:''}, b2:{img:BANNER_IMG[1], link:''}, b3:{img:BANNER_IMG[2], link:''} },
-        apk_link: APK_LINK, apk_version: APK_VERSION, support_link: SUPPORT_LINK, shop_link: SHOP_LINK, apk_text: 'আরও সহজে খেলতে আমাদের অ্যাপ ডাউনলোড করুন!'
-      }, LS.get('x_settings', {}));
-      const step = 20*60000;
-      let base = Math.ceil((Date.now() + 5*60000) / step) * step;
-      let n = 164554;
-      CATS.forEach(([id,name,mode,count,types,map,prize,kill,fee,total,c1,c2]) => {
-        store.categories[id] = { name, img: CAT_IMG[id] };
-        const tp = types.split(',');
-        for(let i=0;i<count;i++){
-          const ts = base + i*step + (id==='br'?0:Math.floor(i/2)*step*0.5);
-          const key = id+'_'+i;
-          const type = tp[i % tp.length];
-          const d = new Date(ts); const p2 = x => String(x).padStart(2,'0');
-          let h = d.getHours(), ap = h>=12?'PM':'AM'; h = h%12 || 12;
-          const parts = Object.keys((store.match_participants||{})[key]||{}).length;
-          const full = (id==='br' && i===0);
-          const joinedBase = 0;
-          store.matches[key] = {
-            categoryId:id, title: (id==='br' ? type+' Time' : name), type, entry:fee, total, joined: Math.min(total, joinedBase + parts),
-            total_prize: prize, per_kill: kill, map, timestamp: ts, status:'Upcoming', match_no: n++,
-            time: `${d.getFullYear()}-${p2(d.getMonth()+1)}-${p2(d.getDate())} at ${p2(h)}:${p2(d.getMinutes())} ${ap}`,
-            room_id:'', room_pass:'', prizes: id==='br' ? [50,40,30,20,10] : null
-          };
-        }
-      });
-    }
-    seedPublic();
-    window.__xSaveSettings = (o) => { LS.set('x_settings', o); };
-    // ===== LOCAL MODE শেষ =====
+    import { initializeApp, getDatabase, ref, set, onValue, push, update, get, serverTimestamp, getAuth, GoogleAuthProvider, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, onAuthStateChanged, updateProfile, updatePassword, reauthenticateWithCredential, EmailAuthProvider, fallbackImg } from "./local-db.js";
+    window.addEventListener('error', e => { const t = e.target; if(t && t.tagName === 'IMG' && !t.dataset.fb){ t.dataset.fb = 1; t.src = fallbackImg('IMAGE'); } }, true);
 
     const app = initializeApp(); const db = getDatabase(app); const auth = getAuth(app);
 
@@ -2308,7 +2224,9 @@
     function showDownloadPopup(d) {
         const standalone = window.matchMedia('(display-mode: standalone)').matches || navigator.standalone;
         if(standalone || sessionStorage.getItem('dl_seen')) return;
-        apkLink = (d && d.apk_link) || '';
+        if(d && d.apk_show === false) return;
+        apkLink = (d && d.apk_url) || '';
+        if(d && d.apk_title) document.getElementById('dl-title').innerText = d.apk_title;
         document.getElementById('dl-text').innerText = (d && d.apk_text) || 'আরও সহজে খেলতে আমাদের অ্যাপ ডাউনলোড করুন!';
         document.getElementById('dl-ver').innerText = (d && d.apk_version) ? 'ভার্সন ' + d.apk_version : '';
         const b = document.getElementById('dl-go');
@@ -2316,6 +2234,7 @@
         sessionStorage.setItem('dl_seen', '1');
         setTimeout(() => document.getElementById('dl-modal').classList.add('active'), 3600);
     }
+    if('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(()=>{});
     window.onload = () => { initData(); };
 
     function initData() {
