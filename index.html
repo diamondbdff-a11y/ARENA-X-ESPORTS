@@ -1620,7 +1620,7 @@
                 <div><div style="font-weight:800;font-size:17px;">কোনো সাহায্য দরকার?</div><div style="font-size:13px;color:#666;margin-top:4px;"><span style="color:#4caf50;">●</span> ২৪/৭ কাস্টমার সাপোর্ট</div></div>
                 <button class="help-btn" onclick="window.openSupport()">যোগাযোগ ›</button>
             </div>
-            <button class="live-btn" onclick="window.openSupport()">● LIVE MATCHES - এখনই দেখুন</button>
+            <button class="live-btn" onclick="window.openLive()">● LIVE MATCHES - এখনই দেখুন</button>
             <div class="category-title">FREE FIRE</div>
 
             <div id="dynamic-category-list" class="category-grid"></div>
@@ -2213,13 +2213,19 @@
       ['lw1','Lone Wolf 1 Vs 1','Lone Wolf',12,'Solo','Lone Wolf',30,0,5,2,'#0d47a1','#b71c1c']
     ];
     const bannerImg = (t1, t2, c1, c2) => 'data:image/svg+xml;utf8,' + encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" width="800" height="360"><defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="${c1}"/><stop offset="1" stop-color="${c2}"/></linearGradient></defs><rect width="800" height="360" fill="url(#g)"/><text x="400" y="170" font-family="Arial" font-weight="900" font-size="54" fill="#fff" text-anchor="middle">${t1}</text><text x="400" y="225" font-family="Arial" font-weight="700" font-size="26" fill="#ffd54a" text-anchor="middle">${t2}</text></svg>`);
+    // ===== আপনার লিংক এখানে বসান (ফাঁকা থাকলে বাটন চাপলে "লিংক সেট করা হয়নি" দেখাবে) =====
+    const SUPPORT_LINK = '';   // যেমন: 'https://t.me/yourchannel' বা WhatsApp/Facebook লিংক
+    const SHOP_LINK    = '';   // ডায়মন্ড টপআপ শপের লিংক
+    const APK_LINK     = '';   // অ্যাপ (APK) ডাউনলোডের সরাসরি লিংক
+    const APK_VERSION  = '1.0';
+    // =====================================================================
     function seedPublic() {
       store.categories = {}; store.matches = {};
       store.app_settings = Object.assign({
         app_name: 'ARENA X ESPORTS',
         notice: 'কম দামে ডায়মন্ড টপ আপ করতে নিচে Shop বাটনে ক্লিক করুন।',
-        banners: { b1:{img:bannerImg('ARENA X ESPORTS','Join matches & win big prizes','#e65100','#4a148c'), link:''}, b2:{img:bannerImg('FREE FIRE TOURNAMENT','প্রতিদিন নতুন ম্যাচ','#1565c0','#0d2a5c'), link:''}, b3:{img:bannerImg('LONE WOLF','1 VS 1 & 2 VS 2','#c62828','#311b92'), link:''} },
-        apk_link: '', apk_version: '1.0', apk_text: 'আরও সহজে খেলতে আমাদের অ্যাপ ডাউনলোড করুন!'
+        banners: { b1:{img:bannerImg('ARENA X ESPORTS','Join matches and win big prizes','#e65100','#4a148c'), link:''}, b2:{img:bannerImg('FREE FIRE TOURNAMENT','প্রতিদিন নতুন ম্যাচ','#1565c0','#0d2a5c'), link:''}, b3:{img:bannerImg('LONE WOLF','1 VS 1 / 2 VS 2','#c62828','#311b92'), link:''} },
+        apk_link: APK_LINK, apk_version: APK_VERSION, support_link: SUPPORT_LINK, shop_link: SHOP_LINK, apk_text: 'আরও সহজে খেলতে আমাদের অ্যাপ ডাউনলোড করুন!'
       }, LS.get('x_settings', {}));
       const step = 20*60000;
       let base = Math.ceil((Date.now() + 5*60000) / step) * step;
@@ -2235,7 +2241,7 @@
           let h = d.getHours(), ap = h>=12?'PM':'AM'; h = h%12 || 12;
           const parts = Object.keys((store.match_participants||{})[key]||{}).length;
           const full = (id==='br' && i===0);
-          const joinedBase = full ? total : Math.min(total-1, (i*7+3) % total);
+          const joinedBase = 0;
           store.matches[key] = {
             categoryId:id, title: (id==='br' ? type+' Time' : name), type, entry:fee, total, joined: Math.min(total, joinedBase + parts),
             total_prize: prize, per_kill: kill, map, timestamp: ts, status:'Upcoming', match_no: n++,
@@ -3255,8 +3261,10 @@
         if(type === 'howPlay') url = videoLinks.howPlay;
         if(url) window.open(url, '_blank');
     }
-    function openSupport() { if(supportLink) window.open(supportLink, '_blank'); }
-    function openShopLink() { if(shopLink) window.open(shopLink, '_blank'); }
+    function openSupport() { if(supportLink) window.open(supportLink, '_blank'); else Swal.fire({icon:'info', title:'সাপোর্ট', text:'সাপোর্ট লিংক এখনো সেট করা হয়নি।', confirmButtonText:'ঠিক আছে'}); }
+    function openLive() { openCategory('br'); filterMatchTab('Ongoing'); }
+    window.openLive = openLive;
+    function openShopLink() { if(shopLink) window.open(shopLink, '_blank'); else Swal.fire({icon:'info', title:'শপ', text:'শপের লিংক এখনো সেট করা হয়নি।', confirmButtonText:'ঠিক আছে'}); }
     
     function loadHistory() {
          const l = document.getElementById('history-list');
