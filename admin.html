@@ -357,6 +357,7 @@
             <div class="form-group"><label class="form-label">How to Add Money (Video)</label><input type="text" id="set-vid-add" class="form-input"></div>
             <div class="form-group"><label class="form-label">How to Join Match (Video)</label><input type="text" id="set-vid-join" class="form-input"></div>
             <div class="form-group"><label class="form-label">How to Join Room (Video)</label><input type="text" id="set-vid-room" class="form-input"></div>
+            <div class="form-group"><label class="form-label">Extra Links (Telegram, YouTube, Facebook ইত্যাদি) - প্রতি লাইনে একটা: নাম | লিংক</label><textarea id="set-extra" class="form-input" rows="5" placeholder="Telegram Channel | https://t.me/yourchannel&#10;YouTube Channel | https://youtube.com/@yourchannel"></textarea></div>
         </div>
 
         <button class="btn btn-primary" style="width:100%; margin-top:25px; padding:16px; font-size:15px; box-shadow: 0 10px 20px rgba(124, 77, 255, 0.3);" onclick="saveSettings()">SAVE ALL SETTINGS</button>
@@ -1017,6 +1018,7 @@ window.pickImg = function(id){
                     document.getElementById('set-vid-add').value = d.how_to_add_money_link || '';
                     document.getElementById('set-vid-join').value = d.how_to_play_link || '';
                     document.getElementById('set-vid-room').value = d.how_to_get_room_id_link || '';
+                    document.getElementById('set-extra').value = d.extra_links || '';
                 }
             });
         }
@@ -1035,7 +1037,8 @@ window.pickImg = function(id){
                 shop_link: document.getElementById('set-shop').value,
                 how_to_add_money_link: document.getElementById('set-vid-add').value,
                 how_to_play_link: document.getElementById('set-vid-join').value,
-                how_to_get_room_id_link: document.getElementById('set-vid-room').value
+                how_to_get_room_id_link: document.getElementById('set-vid-room').value,
+                extra_links: document.getElementById('set-extra').value
             };
             update(ref(db, 'app_settings'), data);
             Swal.fire({icon: 'success', title: 'Settings Saved', showConfirmButton: false, timer: 1500});
