@@ -1,0 +1,26 @@
+[
+  {
+    "relation": [
+      "delegate_permission/common.handle_all_urls"
+    ],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "com.arenax.esports",
+      "sha256_cert_fingerprints": [
+        "E7:80:9E:EC:8A:48:A4:F1:C6:48:B3:FC:A9:92:81:9B:B9:62:28:9A:24:71:21:F2:90:76:5B:5B:9F:99:82:AC"
+      ]
+    }
+  },
+  {
+    "relation": [
+      "delegate_permission/common.handle_all_urls"
+    ],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "com.onrender.arena_x_esports_1.twa",
+      "sha256_cert_fingerprints": [
+        "E7:80:9E:EC:8A:48:A4:F1:C6:48:B3:FC:A9:92:81:9B:B9:62:28:9A:24:71:21:F2:90:76:5B:5B:9F:99:82:AC"
+      ]
+    }
+  }
+]
