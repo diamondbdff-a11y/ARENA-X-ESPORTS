@@ -222,6 +222,7 @@
     }
 
     /* --- AUTH VIEW --- */
+    .swal2-container { z-index: 20000 !important; }
     #auth-view {
         position: fixed;
         top: 0; left: 0;
@@ -1544,6 +1545,7 @@
             </div>
 
             <button class="auth-black-btn" onclick="window.emailLogin()">Sign In</button>
+            <button class="auth-black-btn" style="background:#fff;color:#333;border:1px solid #ddd;margin-top:10px;box-shadow:none" onclick="window.googleLogin()"><i class="fab fa-google" style="color:#db4437;margin-right:8px"></i>Google দিয়ে চালিয়ে যান</button>
             
             <div class="auth-forget-link" onclick="window.forgotPassword()">Forget Password ?</div>
             
@@ -1586,6 +1588,7 @@
             </div>
 
             <button class="auth-black-btn" onclick="window.emailRegister()">SIGN UP</button>
+            <button class="auth-black-btn" style="background:#fff;color:#333;border:1px solid #ddd;margin-top:10px;box-shadow:none" onclick="window.googleLogin()"><i class="fab fa-google" style="color:#db4437;margin-right:8px"></i>Google দিয়ে চালিয়ে যান</button>
             
             <div class="auth-footer-link">
                  Already have an account <span onclick="window.toggleAuthMode('login')">Sign in here</span>
@@ -2173,7 +2176,7 @@
 
 <script>setTimeout(function(){var sp=document.getElementById('app-splash');if(sp){sp.style.opacity='0';setTimeout(function(){sp.style.display='none'},500);}},8000);</script>
 <script type="module">
-    import { initializeApp, getDatabase, ref, set, onValue, push, update, get, serverTimestamp, getAuth, GoogleAuthProvider, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, onAuthStateChanged, updateProfile, updatePassword, reauthenticateWithCredential, EmailAuthProvider, sendPasswordResetEmail, fallbackImg, API_URL } from "./local-db.js";
+    import { initializeApp, getDatabase, ref, set, onValue, push, update, get, serverTimestamp, getAuth, GoogleAuthProvider, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, onAuthStateChanged, updateProfile, updatePassword, reauthenticateWithCredential, EmailAuthProvider, sendPasswordResetEmail, signInWithPopup, fallbackImg, API_URL } from "./local-db.js";
     window.addEventListener('error', e => { const t = e.target; if(t && t.tagName === 'IMG' && !t.dataset.fb){ t.dataset.fb = 1; t.src = fallbackImg('IMAGE'); } }, true);
 
     const app = initializeApp(); const db = getDatabase(app); const auth = getAuth(app);
@@ -2247,6 +2250,19 @@
         if(window._partsOn) return; window._partsOn = true;
         onValue(ref(db, 'match_participants'), s => { allParticipants = s.val() || {}; calculateJoinedMatches(); });
     };
+    function authMsg(e) {
+        const m = { 'auth/email-already-in-use':'এই ইমেইল আগেই রেজিস্টার করা আছে। লগইন করুন বা Forget Password দিন।', 'auth/weak-password':'পাসওয়ার্ড কমপক্ষে ৬ অক্ষরের দিন।', 'auth/invalid-email':'সঠিক ইমেইল দিন।', 'auth/invalid-credential':'ইমেইল বা পাসওয়ার্ড ভুল।', 'auth/user-not-found':'এই ইমেইলে কোনো একাউন্ট নেই।', 'auth/wrong-password':'পাসওয়ার্ড ভুল।', 'auth/network-request-failed':'ইন্টারনেট সংযোগ চেক করুন।', 'auth/too-many-requests':'অনেকবার চেষ্টা হয়েছে, কিছুক্ষণ পরে আবার চেষ্টা করুন।' };
+        return m[e.code] || e.message;
+    }
+    window.googleLogin = async () => {
+        toggleLoader(true);
+        try { await signInWithPopup(auth, new GoogleAuthProvider()); toggleLoader(false); }
+        catch(e) { toggleLoader(false); if(e.code !== 'auth/popup-closed-by-user' && e.code !== 'auth/cancelled-popup-request') Swal.fire('Error', e.code === 'auth/unauthorized-domain' ? 'এই ডোমেইন Firebase-এ অনুমোদিত নয়' : authMsg(e), 'error'); }
+    };
+    async function askPhone(uid) {
+        const r = await Swal.fire({ title:'মোবাইল নম্বর দিন', text:'উইথড্র আর যোগাযোগের জন্য আপনার মোবাইল নম্বর লাগবে', input:'tel', inputPlaceholder:'01XXXXXXXXX', allowOutsideClick:false, confirmButtonText:'সেভ করুন', inputValidator: v => /^01\d{9}$/.test((v||'').trim()) ? null : 'সঠিক ১১ ডিজিটের নম্বর দিন' });
+        if(r.isConfirmed) { try { await update(ref(db, 'users/'+uid), { phone: r.value.trim() }); } catch(e) {} }
+    }
     window.forgotPassword = async () => {
         const typed = document.getElementById('login-email').value.trim();
         const r = await Swal.fire({ title:'পাসওয়ার্ড রিসেট', text:'আপনার ইমেইল দিন, রিসেট লিংক পাঠানো হবে', input:'email', inputValue: typed, inputPlaceholder:'Email Address', showCancelButton:true, confirmButtonText:'লিংক পাঠান', cancelButtonText:'বাতিল' });
@@ -3054,7 +3070,11 @@
             // Recalculate joined matches since currentUser is now set
             calculateJoinedMatches();
             window._startParts();
-            get(ref(db, 'users/'+u.uid)).then(sn => { if(!sn.exists()) return set(ref(db, 'users/'+u.uid), {username: u.displayName || 'User', email: u.email || '', phone: '', deposit: 0, winning: 0}); }).catch(()=>{});
+            get(ref(db, 'users/'+u.uid)).then(async sn => {
+                const isG = (u.providerData || []).some(x => x.providerId === 'google.com');
+                if(!sn.exists()) { await set(ref(db, 'users/'+u.uid), {username: u.displayName || 'User', email: u.email || '', phone: '', deposit: 0, winning: 0}); if(isG) askPhone(u.uid); }
+                else if(isG && !sn.val().phone) askPhone(u.uid);
+            }).catch(()=>{});
             
             onValue(ref(db, 'users/'+u.uid), s => {
                 const d = s.val();
@@ -3096,7 +3116,7 @@
          toggleLoader(true);
          signInWithEmailAndPassword(auth, e, p)
              .then(() => toggleLoader(false))
-             .catch(e => { toggleLoader(false); Swal.fire('Error', e.message, 'error'); });
+             .catch(e => { toggleLoader(false); Swal.fire('Error', authMsg(e), 'error'); });
     }
     
     function emailRegister() {
@@ -3106,13 +3126,15 @@
          const p = document.getElementById('reg-pass').value;
          // reg-promo can be used if needed
          if(!n || !e || !ph || !p) return Swal.fire('Error', "Please fill all fields", 'error');
+         if(!/^01\d{9}$/.test(ph.trim())) return Swal.fire('Error', 'সঠিক ১১ ডিজিটের মোবাইল নম্বর দিন (01XXXXXXXXX)', 'error');
+         if(p.length < 6) return Swal.fire('Error', 'পাসওয়ার্ড কমপক্ষে ৬ অক্ষরের দিন', 'error');
 
          toggleLoader(true);
          createUserWithEmailAndPassword(auth, e, p).then((c)=> {
              updateProfile(c.user, {displayName:n});
              set(ref(db, 'users/'+c.user.uid), {username:n, email:e, phone:ph, deposit:0, winning:0});
              toggleLoader(false);
-         }).catch(e=> { toggleLoader(false); Swal.fire('Error', e.message, 'error'); });
+         }).catch(e=> { toggleLoader(false); Swal.fire('Error', authMsg(e), 'error'); });
     }
     
     function handleLogout() { 
