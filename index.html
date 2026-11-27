@@ -1692,6 +1692,7 @@
                     <span id="menu-notif-badge" style="background:red; color:white; font-size:10px; padding:2px 6px; border-radius:10px; margin-left:auto; display:none;">0</span>
                 </div>
 
+                <div id="extra-links-container"></div>
                 <div class="menu-item" onclick="window.handleLogout()" id="profile-logout-btn">
                     <i class="fas fa-sign-out-alt" style="color:var(--danger); width:20px;"></i>
                     <span style="color:var(--danger);">Logout</span>
@@ -2223,6 +2224,24 @@
     window.closeJoinPage = closeJoinPage;
 
 
+    function renderExtraLinks(txt) {
+        const box = document.getElementById('extra-links-container'); if(!box) return;
+        box.innerHTML = '';
+        String(txt || '').split('\n').forEach(line => {
+            const p = line.split('|'); const t = (p[0] || '').trim(); const u = (p[1] || '').trim();
+            if(!t || !/^https?:\/\//i.test(u)) return;
+            let ic = 'fas fa-link', col = '#555';
+            if(/t\.me|telegram/i.test(u)) { ic = 'fab fa-telegram'; col = '#229ED9'; }
+            else if(/youtu/i.test(u)) { ic = 'fab fa-youtube'; col = '#f00'; }
+            else if(/facebook|fb\.com|fb\.watch/i.test(u)) { ic = 'fab fa-facebook'; col = '#1877f2'; }
+            else if(/wa\.me|whatsapp/i.test(u)) { ic = 'fab fa-whatsapp'; col = '#25d366'; }
+            const d = document.createElement('div'); d.className = 'menu-item';
+            d.innerHTML = '<i class="' + ic + '" style="color:' + col + ';width:20px;font-size:20px"></i><span></span><i class="fas fa-chevron-right" style="margin-left:auto;color:#ccc"></i>';
+            d.querySelector('span').textContent = t;
+            d.onclick = () => window.open(u, '_blank');
+            box.appendChild(d);
+        });
+    }
     let apkLink = '';
     window.startDownload = () => { if(apkLink) window.open(apkLink, '_blank'); document.getElementById('dl-modal').classList.remove('active'); };
     function showDownloadPopup(d) {
@@ -2340,6 +2359,7 @@
                 videoLinks.howPlay = d.how_to_play_link;
                 supportLink = d.support_link;
                 shopLink = d.shop_link;
+                renderExtraLinks(d.extra_links);
 
                 if(d.show_popup && d.popup_text) {
                     document.getElementById('startup-popup-content').innerHTML = d.popup_text.replace(/\n/g, '<br>');
@@ -2495,6 +2515,7 @@
         else if (status === 'Ongoing') m = rawMatches.filter(x => x.categoryId === currentActiveCategory && x.status === 'Ongoing');
         else if (status === 'Finished') m = rawMatches.filter(x => x.categoryId === currentActiveCategory && x.status === 'Finished');
         
+        m.sort((a,b) => status==='Upcoming' ? (Number(a.timestamp)||0)-(Number(b.timestamp)||0) : (Number(b.timestamp)||0)-(Number(a.timestamp)||0));
         if(m.length === 0) c.innerHTML = `<div class='empty-msg'>No ${status} Matches Found</div>`;
         else m.forEach(x => c.innerHTML += createMatchCardHTML(x, (status==='Finished' ? 'result' : 'play')));
     }
