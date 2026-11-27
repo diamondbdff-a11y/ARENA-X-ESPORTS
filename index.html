@@ -493,6 +493,8 @@
         align-items: center;
     }
     
+.notice-icon { color: #ff9800; font-size: 17px; padding: 0 8px 0 4px; flex-shrink: 0; }
+    .marquee-text { flex: 1; overflow: hidden; position: relative; white-space: nowrap; }
     #dynamic-notice {
         color: #ff9800; 
         font-weight: 800;
@@ -1620,7 +1622,8 @@
 
         <div class="home-content-wrapper">
             <div class="marquee-container">
-                <div id="dynamic-notice">Welcome to ARENA X ESPORTS Tournament! Join matches and win big prizes.</div>
+                <i class="fas fa-bullhorn notice-icon"></i>
+                <div class="marquee-text"><div id="dynamic-notice">Welcome to ARENA X ESPORTS Tournament! Join matches and win big prizes.</div></div>
             </div>
 
             <div class="help-card">
@@ -2175,7 +2178,7 @@
 <!-- SweetAlert2 JS -->
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 
-<script>setTimeout(function(){var sp=document.getElementById('app-splash');if(sp){sp.style.opacity='0';setTimeout(function(){sp.style.display='none'},500);}},8000);</script>
+<script>setTimeout(function(){var sp=document.getElementById('app-splash');if(sp){sp.style.opacity='0';setTimeout(function(){sp.style.display='none'},500);}},5000);</script>
 <script type="module">
     import { initializeApp, getDatabase, ref, set, onValue, push, update, get, serverTimestamp, getAuth, GoogleAuthProvider, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, onAuthStateChanged, updateProfile, updatePassword, reauthenticateWithCredential, EmailAuthProvider, sendPasswordResetEmail, signInWithPopup, fallbackImg, API_URL } from "./local-db.js";
     window.addEventListener('error', e => { const t = e.target; if(t && t.tagName === 'IMG' && !t.dataset.fb){ t.dataset.fb = 1; t.src = fallbackImg('IMAGE'); } }, true);
@@ -2387,7 +2390,7 @@
                     splash.style.opacity = '0';
                     setTimeout(() => splash.style.display = 'none', 500);
                 }
-            }, 3000);
+            }, 300);
         });
 
         startTimers();
