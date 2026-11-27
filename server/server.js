@@ -62,6 +62,7 @@ app.post('/join', auth, async (req, res) => {
 
     // ২) ব্যালেন্স কাটা
     const bal = await db.ref('users/' + uid).transaction(u => {
+      if (u === null) return u; // প্রথমবার ডাটা না থাকলে ফিরিয়ে দাও, Firebase আসল ডাটা নিয়ে আবার চেষ্টা করবে
       if (!u) return;
       let d = Number(u.deposit) || 0, w = Number(u.winning) || 0;
       if (d + w < total) return; // abort
@@ -104,6 +105,7 @@ app.post('/withdraw', auth, async (req, res) => {
 
   try {
     const r = await db.ref('users/' + uid + '/winning').transaction(w => {
+      if (w === null) return w; // প্রথমবার ডাটা না থাকলে আবার চেষ্টা করবে
       w = Number(w) || 0;
       if (w < amount) return; // abort
       return w - amount;
