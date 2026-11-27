@@ -102,11 +102,50 @@ async function auth(req, res, next) {
   } catch (e) { res.status(401).json({ error: 'লগইন করুন' }); }
 }
 
+// ---------- ব্যান সিস্টেম ----------
+const ADMIN_EMAIL = process.env.ADMIN_EMAIL || 'khelobangladeshlive344@gmail.com';
+
+// ব্যান করা ইউজার জয়েন বা উইথড্র করতে পারবে না
+async function notBanned(req, res, next) {
+  try {
+    const b = (await db.ref('banned/' + req.user.uid).get()).val();
+    if (b) return res.status(403).json({ error: 'আপনার অ্যাকাউন্ট ব্যান করা হয়েছে' + (b.reason ? ' (কারণ: ' + b.reason + ')' : '') });
+    next();
+  } catch (e) {
+    console.error('ban check error', e);
+    res.status(500).json({ error: 'সার্ভারে সমস্যা, আবার চেষ্টা করুন' });
+  }
+}
+
+// শুধু অ্যাডমিন ব্যান / আনব্যান করতে পারবে
+app.post('/admin/ban', auth, async (req, res) => {
+  if (req.user.email !== ADMIN_EMAIL) return res.status(403).json({ error: 'শুধু অ্যাডমিনের জন্য' });
+  const uid = String(req.body.uid || '');
+  const ban = req.body.ban === true;
+  const reason = String(req.body.reason || '').trim().slice(0, 100);
+  if (!/^[\w-]{1,128}$/.test(uid)) return res.status(400).json({ error: 'ভুল ইউজার' });
+  if (uid === req.user.uid) return res.status(400).json({ error: 'নিজেকে ব্যান করা যাবে না' });
+  try {
+    const exists = (await db.ref('users/' + uid).get()).exists();
+    if (!exists) return res.status(404).json({ error: 'ইউজার পাওয়া যায়নি' });
+    await db.ref().update({
+      ['banned/' + uid]: ban ? { reason, date: now() } : null,
+      ['users/' + uid + '/banned']: ban ? true : null,
+      ['users/' + uid + '/banReason']: ban ? reason : null
+    });
+    console.log(ban ? 'banned' : 'unbanned', uid);
+    res.json({ ok: true });
+  } catch (e) {
+    console.error('ban error', e);
+    res.status(500).json({ error: 'সার্ভারে সমস্যা, আবার চেষ্টা করুন' });
+  }
+});
+
 const TYPE_COUNT = { solo: 1, duo: 2, squad: 4 };
 const now = () => new Date().toLocaleString('en-GB', { timeZone: 'Asia/Dhaka' });
 
 // ---------- ম্যাচে জয়েন ----------
-app.post('/join', auth, async (req, res) => {
+app.post('/join', auth, notBanned, async (req, res) => {
   const uid = req.user.uid;
   const matchId = String(req.body.matchId || '');
   let names = Array.isArray(req.body.names) ? req.body.names : [];
@@ -171,7 +210,7 @@ app.post('/join', auth, async (req, res) => {
 });
 
 // ---------- উইথড্র রিকোয়েস্ট ----------
-app.post('/withdraw', auth, async (req, res) => {
+app.post('/withdraw', auth, notBanned, async (req, res) => {
   const uid = req.user.uid;
   const amount = Math.floor(Number(req.body.amount));
   const method = String(req.body.method || '');
