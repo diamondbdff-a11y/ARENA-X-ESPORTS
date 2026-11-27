@@ -57,6 +57,14 @@
         user-select: text;
     }
 
+    /* উপর থেকে টান দিলে পেজ রিফ্রেশ হবে না */
+    html, body {
+        overscroll-behavior-y: none;
+    }
+    #auth-view {
+        overscroll-behavior: contain;
+    }
+
     body {
         background-color: var(--bg-color);
         padding-bottom: 90px;
@@ -2304,6 +2312,37 @@
     });
     window.onload = () => { initData(); };
 
+    // সার্ভার ঘুমিয়ে থাকলে জাগাও, যাতে ম্যাচের সময় আপডেট হয়
+    function wakeServer() {
+        if(!document.hidden) fetch(API_URL + '/health', { mode: 'no-cors', cache: 'no-store' }).catch(()=>{});
+    }
+    wakeServer();
+    setInterval(wakeServer, 60000);
+    document.addEventListener('visibilitychange', wakeServer);
+
+    // ফোনের ঘড়ি ভুল থাকলেও সার্ভারের সময় অনুযায়ী হিসাব
+    let timeOffset = 0;
+    onValue(ref(db, '.info/serverTimeOffset'), s => { timeOffset = Number(s.val()) || 0; });
+    const serverNow = () => Date.now() + timeOffset;
+
+    // সময় পার হলে ডাটাবেজ আপডেটের অপেক্ষা না করেই সঠিক ট্যাবে দেখাও
+    function liveStatus(m) {
+        const ts = Number(m.timestamp) || 0;
+        if(m.status !== 'Upcoming' || !ts || ts > serverNow()) return m.status;
+        const recurring = m.recurring === true || m.dbKey.startsWith('demo_');
+        // কেউ জয়েন না করা অটো ম্যাচ: সার্ভার নতুন সময় না দেওয়া পর্যন্ত লুকানো থাকবে
+        return (recurring && !(Number(m.joined) > 0)) ? 'Expired' : 'Ongoing';
+    }
+    let lastStatusKey = '';
+    function refreshIfStatusChanged() {
+        const key = rawMatches.map(liveStatus).join();
+        if(key === lastStatusKey) return;
+        lastStatusKey = key;
+        updateCounts();
+        if(document.getElementById('matches-view').classList.contains('active')) filterMatchTab(currentMatchFilter);
+        if(document.getElementById('tab-mymatches-view').classList.contains('active')) loadMyMatches();
+    }
+
     function initData() {
         onValue(ref(db, 'categories'), s => {
             const d = s.val();
@@ -2420,7 +2459,7 @@
 
     function updateCounts() {
          Object.keys(activeCategories).forEach(k => {
-             const n = rawMatches.filter(m => m.categoryId === k && m.status !== 'Finished').length;
+             const n = rawMatches.filter(m => m.categoryId === k && !['Finished', 'Expired'].includes(liveStatus(m))).length;
              const el = document.getElementById(`count-${k}`);
              if(el) el.innerText = `${n} matches found`;
          });
@@ -2514,9 +2553,7 @@
         const c = document.getElementById('matches-container');
         c.innerHTML = "";
         let m = [];
-        if(status === 'Upcoming') m = rawMatches.filter(x => x.categoryId === currentActiveCategory && x.status === 'Upcoming');
-        else if (status === 'Ongoing') m = rawMatches.filter(x => x.categoryId === currentActiveCategory && x.status === 'Ongoing');
-        else if (status === 'Finished') m = rawMatches.filter(x => x.categoryId === currentActiveCategory && x.status === 'Finished');
+        m = rawMatches.filter(x => x.categoryId === currentActiveCategory && liveStatus(x) === status);
         
         m.sort((a,b) => status==='Upcoming' ? (Number(a.timestamp)||0)-(Number(b.timestamp)||0) : (Number(b.timestamp)||0)-(Number(a.timestamp)||0));
         if(m.length === 0) c.innerHTML = `<div class='empty-msg'>No ${status} Matches Found</div>`;
@@ -3056,9 +3093,10 @@
 
     function startTimers() {
         setInterval(() => {
+            refreshIfStatusChanged();
             document.querySelectorAll('.match-countdown').forEach(e => {
                  const t = parseInt(e.dataset.time);
-                 const diff = t - new Date().getTime();
+                 const diff = t - serverNow();
                  if(diff < 0) e.innerHTML = '<i class="far fa-clock"></i> MATCH STARTED';
                  else {
                      const h = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
