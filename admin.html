@@ -1007,7 +1007,7 @@ window.pickImg = function(id){
             const name = u.username || u.email || uid;
             const r = await Swal.fire({
                 title: ban ? 'ইউজার ব্যান করবে?' : 'ব্যান তুলে দিবে?',
-                text: name,
+                text: name + (ban ? ' — অ্যাকাউন্ট, ডিভাইস, মোবাইল নম্বর ও উইথড্র নম্বর সব ব্যান হবে' : ' — অ্যাকাউন্ট খুলে যাবে। ডিভাইসটি শুধু এই অ্যাকাউন্টের জন্য থাকবে, অন্য কোনো অ্যাকাউন্ট ওই ডিভাইসে চলবে না'),
                 icon: ban ? 'warning' : 'question',
                 input: ban ? 'text' : undefined,
                 inputValue: ban ? 'হ্যাক ব্যবহার' : undefined,
@@ -1024,7 +1024,7 @@ window.pickImg = function(id){
                 const res = await fetch(API_URL + '/admin/ban', { method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token }, body: JSON.stringify({ uid, ban, reason: ban ? r.value : '' }) });
                 let j = {}; try { j = await res.json(); } catch(e) {}
                 if(!res.ok) throw new Error(j.error || (res.status === 404 ? 'সার্ভারে নতুন server.js এখনো চালু হয়নি' : 'সার্ভারে সমস্যা (' + res.status + ')'));
-                Swal.fire({ icon: 'success', title: ban ? 'ব্যান হয়েছে' : 'ব্যান তুলে দেওয়া হয়েছে', timer: 1500, showConfirmButton: false });
+                Swal.fire({ icon: 'success', title: ban ? 'ব্যান হয়েছে' : 'ব্যান তুলে দেওয়া হয়েছে', text: ban ? ('ডিভাইস ' + (j.devices || 0) + 'টি, মোবাইল নম্বর ' + (j.phones || 0) + 'টি, উইথড্র নম্বর ' + (j.numbers || 0) + 'টি ব্যান') : ('ডিভাইস ' + (j.devices || 0) + 'টি এই অ্যাকাউন্টের জন্য লক আছে'), confirmButtonText: 'ঠিক আছে' });
             } catch(e) { Swal.fire('হয়নি', e.message, 'error'); }
         };
 
