@@ -452,7 +452,7 @@ window.pickImg = function(id){
             const er = document.getElementById('adm-err'); er.innerText = '';
             if(!e || !p) { er.innerText = 'ইমেইল ও পাসওয়ার্ড দিন'; return; }
             try { await signInWithEmailAndPassword(auth, e, p); }
-            catch(x) { er.innerText = 'লগইন হয়নি: ইমেইল বা পাসওয়ার্ড ভুল'; }
+            catch(x) { er.innerText = 'লগইন হয়নি: ' + (x.code || x.message); console.error(x); }
         };
         window.doLogout = () => signOut(auth).then(() => location.reload());
 
