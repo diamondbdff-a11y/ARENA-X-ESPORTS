@@ -13,6 +13,9 @@ const firebaseConfig = {
   appId: "1:190419573410:web:1944533080f25bc2c9d5fb"
 };
 
+// Render-এ সার্ভার বানানোর পর পাওয়া লিংক এখানে বসান (শেষে / দেবেন না)
+export const API_URL = "https://YOUR-SERVER.onrender.com";
+
 const _app = initializeApp(firebaseConfig);
 const wrapInit = () => _app;
 const _db = getDatabase(_app);
