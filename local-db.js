@@ -14,7 +14,7 @@ const firebaseConfig = {
 };
 
 // Render-এ সার্ভার বানানোর পর পাওয়া লিংক এখানে বসান (শেষে / দেবেন না)
-export const API_URL = "https://YOUR-SERVER.onrender.com";
+export const API_URL = "https://arena-x-server.onrender.com";
 
 const _app = initializeApp(firebaseConfig);
 const wrapInit = () => _app;
