@@ -2173,7 +2173,7 @@
 
 <script>setTimeout(function(){var sp=document.getElementById('app-splash');if(sp){sp.style.opacity='0';setTimeout(function(){sp.style.display='none'},500);}},8000);</script>
 <script type="module">
-    import { initializeApp, getDatabase, ref, set, onValue, push, update, get, serverTimestamp, getAuth, GoogleAuthProvider, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, onAuthStateChanged, updateProfile, updatePassword, reauthenticateWithCredential, EmailAuthProvider, fallbackImg } from "./local-db.js";
+    import { initializeApp, getDatabase, ref, set, onValue, push, update, get, serverTimestamp, getAuth, GoogleAuthProvider, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, onAuthStateChanged, updateProfile, updatePassword, reauthenticateWithCredential, EmailAuthProvider, fallbackImg, API_URL } from "./local-db.js";
     window.addEventListener('error', e => { const t = e.target; if(t && t.tagName === 'IMG' && !t.dataset.fb){ t.dataset.fb = 1; t.src = fallbackImg('IMAGE'); } }, true);
 
     const app = initializeApp(); const db = getDatabase(app); const auth = getAuth(app);
@@ -2236,6 +2236,17 @@
         setTimeout(() => document.getElementById('dl-modal').classList.add('active'), 3600);
     }
     if('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(()=>{});
+    async function callApi(path, body) {
+        const tok = await auth.currentUser.getIdToken();
+        const r = await fetch(API_URL + path, { method:'POST', headers:{'Content-Type':'application/json','Authorization':'Bearer '+tok}, body: JSON.stringify(body) });
+        let j = {}; try { j = await r.json(); } catch(e) {}
+        if(!r.ok) throw new Error(j.error || 'সার্ভারে সমস্যা, আবার চেষ্টা করুন');
+        return j;
+    }
+    window._startParts = () => {
+        if(window._partsOn) return; window._partsOn = true;
+        onValue(ref(db, 'match_participants'), s => { allParticipants = s.val() || {}; calculateJoinedMatches(); });
+    };
     window.onload = () => { initData(); };
 
     function initData() {
@@ -2278,11 +2289,7 @@
             loadResults(); 
         });
 
-        onValue(ref(db, 'match_participants'), s => {
-            const d = s.val();
-            allParticipants = d || {}; 
-            calculateJoinedMatches();
-        });
+        // match_participants লিসেনার এখন লগইনের পর চালু হয়
         
         onValue(ref(db, 'app_settings'), s => {
             const d = s.val();
@@ -2823,33 +2830,9 @@
          if((depositBal + winningBal) < total) return Swal.fire('Error', "Insufficient Balance", 'error');
          
          const key = document.querySelector('.join-btn-full').dataset.key; // dbKey
-         let d = depositBal, w = winningBal;
-         let rem = total;
-         if(d >= rem) { d -= rem; rem = 0; }
-         else { rem -= d; d = 0; w -= rem; }
-         
          toggleLoader(true);
          try {
-             await update(ref(db, 'users/'+currentUser.uid), {deposit:d, winning:w});
-             
-             // Push to match_participants/MATCH_KEY
-             for(let n of names) {
-                await push(ref(db, 'match_participants/'+currentJoinId), {
-                    ign: n, joinedBy: currentUser.uid, kills:0, win:0
-                });
-             }
-             
-             // Update match count
-             const mRef = ref(db, 'matches/'+key);
-             const snap = await get(mRef);
-             const cur = (snap.val() && snap.val().joined) ? snap.val().joined : 0;
-             await update(mRef, {joined: cur + count});
-             
-             // Log Transaction
-             const tid = push(ref(db, 'transactions/'+currentUser.uid)).key;
-             await set(ref(db, 'transactions/'+currentUser.uid+'/'+tid), {
-                 type: 'Match Join', amount: total, method: 'Wallet', status: 'Success', date: new Date().toLocaleString()
-             });
+             await callApi('/join', { matchId: currentJoinId, names });
              
              // Immediate Local Update for UI responsiveness
              if(!userJoinedMatches.includes(currentJoinId)) {
@@ -2960,35 +2943,7 @@
                     const transactionId = push(ref(db, 'transactions/' + currentUser.uid)).key;
                     const timestamp = new Date().toLocaleString();
                     
-                    // 1. First deduct the amount from user's winning balance
-                    const newWinningBal = winningBal - amount;
-                    await update(ref(db, 'users/' + currentUser.uid), {
-                        winning: newWinningBal
-                    });
-                    
-                    // 2. Create withdraw request in admin panel
-                    await set(ref(db, 'withdraw_requests/' + requestId), {
-                        userId: currentUser.uid,
-                        userName: currentUser.displayName || 'Unknown',
-                        userEmail: currentUser.email,
-                        amount: amount,
-                        method: method,
-                        mobileNumber: number,
-                        status: 'pending',
-                        timestamp: timestamp,
-                        requestedAt: serverTimestamp()
-                    });
-                    
-                    // 3. Create transaction record for user
-                    await set(ref(db, 'transactions/' + currentUser.uid + '/' + transactionId), {
-                        type: 'Withdraw Request',
-                        amount: amount,
-                        method: method,
-                        number: number,
-                        status: 'Pending',
-                        date: timestamp,
-                        requestId: requestId
-                    });
+                    await callApi('/withdraw', { amount: Number(amount), method, number });
                     
                     // 4. Clear input fields
                     document.getElementById('withdraw-amount').value = '';
@@ -3010,7 +2965,7 @@
                 } catch (error) {
                     toggleLoader(false);
                     console.error('Withdraw error:', error);
-                    Swal.fire('Error', 'Failed to process withdraw request. Please try again.', 'error');
+                    Swal.fire('Error', error.message || 'Failed to process withdraw request. Please try again.', 'error');
                 }
             }
         });
@@ -3033,29 +2988,12 @@
     async function verifyAutoPay(method) {
         if (!currentUser) return;
         const trxId = document.getElementById(`trx-${method}`).value.trim();
-        if (!trxId) return Swal.fire({ icon: 'warning', title: 'Oops...', text: 'Please enter Transaction ID' });
-        
-        const usedSnap = await get(ref(db, `Auto Pay/${trxId}`));
-        if (usedSnap.exists()) return Swal.fire({ icon: 'error', title: 'Failed', text: 'This TrxID has already been used!' });
-        
-        const apiSnap = await get(ref(db, 'XNXANIKPAY'));
-        let found = null;
-        if (apiSnap.exists()) Object.values(apiSnap.val()).forEach(p => { if (p.txid && p.txid.toLowerCase() === trxId.toLowerCase()) found = p; });
-        
-        if (found) {
-            const amount = parseFloat(found.amount);
-            await update(ref(db, 'users/' + currentUser.uid), { deposit: depositBal + amount });
-            await set(ref(db, `Auto Pay/${trxId}`), { amount: amount, usedBy: currentUser.uid, time: serverTimestamp() });
-            const txKey = push(ref(db, 'transactions/' + currentUser.uid)).key;
-            await set(ref(db, 'transactions/' + currentUser.uid + '/' + txKey), {
-                type: 'Deposit (Auto)', amount: amount, method: method, status: 'Success', txID: txKey, date: new Date().toLocaleString()
-            });
-            Swal.fire({ icon: 'success', title: 'Successful!', text: `Successfully added ${amount} TK!` }).then(() => {
-                document.getElementById(`trx-${method}`).value = ""; window.navigateSub('wallet');
-            });
-        } else {
-             Swal.fire({ icon: 'error', title: 'Invalid', text: 'Invalid TrxID.' });
-        }
+        const r = await Swal.fire({
+            icon: 'info', title: 'ডিপোজিট',
+            html: 'টাকা পাঠানোর পর সাপোর্টে আপনার TrxID ' + (trxId ? '(<b>' + trxId.replace(/[<>&]/g,'') + '</b>) ' : '') + 'জানান। অ্যাডমিন যাচাই করে ব্যালেন্স যোগ করে দেবে।',
+            showCancelButton: !!supportLink, confirmButtonText: supportLink ? 'সাপোর্টে যান' : 'ঠিক আছে', cancelButtonText: 'বন্ধ করুন'
+        });
+        if (r.isConfirmed && supportLink) window.open(supportLink, '_blank');
     }
 
     function startTimers() {
@@ -3098,6 +3036,7 @@
             
             // Recalculate joined matches since currentUser is now set
             calculateJoinedMatches();
+            window._startParts();
             
             onValue(ref(db, 'users/'+u.uid), s => {
                 const d = s.val();
