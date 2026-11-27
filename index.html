@@ -2171,6 +2171,7 @@
 <!-- SweetAlert2 JS -->
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 
+<script>setTimeout(function(){var sp=document.getElementById('app-splash');if(sp){sp.style.opacity='0';setTimeout(function(){sp.style.display='none'},500);}},8000);</script>
 <script type="module">
     import { initializeApp, getDatabase, ref, set, onValue, push, update, get, serverTimestamp, getAuth, GoogleAuthProvider, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, onAuthStateChanged, updateProfile, updatePassword, reauthenticateWithCredential, EmailAuthProvider, fallbackImg } from "./local-db.js";
     window.addEventListener('error', e => { const t = e.target; if(t && t.tagName === 'IMG' && !t.dataset.fb){ t.dataset.fb = 1; t.src = fallbackImg('IMAGE'); } }, true);
