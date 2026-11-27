@@ -2281,12 +2281,70 @@
         setTimeout(() => document.getElementById('dl-modal').classList.add('active'), 3600);
     }
     if('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(()=>{});
+    // ---------- ডিভাইস আইডি (localStorage + cookie + IndexedDB, তিন জায়গায় জমা থাকে) ----------
+    const DID_KEY = 'arenax_did', DID_RE = /^[\w-]{16,64}$/;
+    let _did = '';
+    function idbOp(mode, fn) {
+        return new Promise(res => {
+            try {
+                const rq = indexedDB.open('arenax_dev', 1);
+                rq.onupgradeneeded = () => rq.result.createObjectStore('k');
+                rq.onerror = () => res('');
+                rq.onsuccess = () => {
+                    try {
+                        const tx = rq.result.transaction('k', mode);
+                        const r = fn(tx.objectStore('k'));
+                        tx.oncomplete = () => res((r && r.result) || '');
+                        tx.onerror = () => res('');
+                    } catch(e) { res(''); }
+                };
+            } catch(e) { res(''); }
+        });
+    }
+    async function getDeviceId() {
+        if(_did) return _did;
+        let id = '';
+        try { id = localStorage.getItem(DID_KEY) || ''; } catch(e) {}
+        if(!DID_RE.test(id)) { const m = document.cookie.match(/(?:^|; )arenax_did=([\w-]+)/); id = m ? m[1] : ''; }
+        if(!DID_RE.test(id)) id = await idbOp('readonly', s => s.get(DID_KEY));
+        if(!DID_RE.test(id)) id = 'd' + Array.from(crypto.getRandomValues(new Uint8Array(16))).map(b => b.toString(16).padStart(2, '0')).join('');
+        _did = id;
+        try { localStorage.setItem(DID_KEY, id); } catch(e) {}
+        try { document.cookie = DID_KEY + '=' + id + '; max-age=315360000; path=/; SameSite=Lax'; } catch(e) {}
+        idbOp('readwrite', s => s.put(id, DID_KEY));
+        return id;
+    }
     async function callApi(path, body) {
         const tok = await auth.currentUser.getIdToken();
-        const r = await fetch(API_URL + path, { method:'POST', headers:{'Content-Type':'application/json','Authorization':'Bearer '+tok}, body: JSON.stringify(body) });
+        const did = await getDeviceId();
+        const r = await fetch(API_URL + path, { method:'POST', headers:{'Content-Type':'application/json','Authorization':'Bearer '+tok,'X-Device-Id':did}, body: JSON.stringify(body) });
         let j = {}; try { j = await r.json(); } catch(e) {}
-        if(!r.ok) throw new Error(j.error || 'সার্ভারে সমস্যা, আবার চেষ্টা করুন');
+        if(!r.ok) { const er = new Error(j.error || 'সার্ভারে সমস্যা, আবার চেষ্টা করুন'); er.code = j.code || ''; throw er; }
         return j;
+    }
+    // এই ডিভাইসে নতুন অ্যাকাউন্ট খোলা যাবে কিনা (সার্ভার না পেলে আটকাবে না)
+    async function deviceLocked() {
+        try {
+            const did = await getDeviceId();
+            const r = await fetch(API_URL + '/device/check?id=' + did, { cache:'no-store' });
+            const j = await r.json();
+            return j.blocked === true;
+        } catch(e) { return false; }
+    }
+    let _blockShown = false;
+    // লগইন/সাইনআপের পর সার্ভারকে ডিভাইস জানানো। ব্যান ডিভাইস বা নম্বর হলে সাথে সাথে লগআউট
+    async function registerDevice() {
+        try { await callApi('/device/register', {}); }
+        catch(e) {
+            if(e.code === 'device_blocked' || e.code === 'phone_banned') {
+                try { await signOut(auth); } catch(x) {}
+                toggleLoader(false);
+                if(!_blockShown) {
+                    _blockShown = true;
+                    Swal.fire({ icon:'error', title: e.code === 'device_blocked' ? 'এই ডিভাইসে হবে না' : 'নম্বর ব্যান', text: e.code === 'device_blocked' ? 'এই ডিভাইস থেকে এই অ্যাকাউন্ট খোলা বা চালানো যাবে না।' : e.message, confirmButtonText:'ঠিক আছে' }).then(() => { _blockShown = false; });
+                }
+            }
+        }
     }
     window._startParts = () => {
         if(window._partsOn) return; window._partsOn = true;
@@ -2303,7 +2361,7 @@
     };
     async function askPhone(uid) {
         const r = await Swal.fire({ title:'মোবাইল নম্বর দিন', text:'উইথড্র আর যোগাযোগের জন্য আপনার মোবাইল নম্বর লাগবে', input:'tel', inputPlaceholder:'01XXXXXXXXX', allowOutsideClick:false, confirmButtonText:'সেভ করুন', inputValidator: v => /^01\d{9}$/.test((v||'').trim()) ? null : 'সঠিক ১১ ডিজিটের নম্বর দিন' });
-        if(r.isConfirmed) { try { await update(ref(db, 'users/'+uid), { phone: r.value.trim() }); } catch(e) {} }
+        if(r.isConfirmed) { try { await update(ref(db, 'users/'+uid), { phone: r.value.trim() }); } catch(e) {} registerDevice(); }
     }
     window.forgotPassword = async () => {
         const typed = document.getElementById('login-email').value.trim();
@@ -3157,7 +3215,7 @@
                 const isG = (u.providerData || []).some(x => x.providerId === 'google.com');
                 if(!sn.exists()) { await set(ref(db, 'users/'+u.uid), {username: u.displayName || 'User', email: u.email || '', phone: '', deposit: 0, winning: 0}); if(isG) askPhone(u.uid); }
                 else if(isG && !sn.val().phone) askPhone(u.uid);
-            }).catch(()=>{});
+            }).catch(()=>{}).then(() => registerDevice());
             
             onValue(ref(db, 'users/'+u.uid), s => {
                 const d = s.val();
@@ -3214,10 +3272,14 @@
          if(p.length < 6) return Swal.fire('Error', 'পাসওয়ার্ড কমপক্ষে ৬ অক্ষরের দিন', 'error');
 
          toggleLoader(true);
-         createUserWithEmailAndPassword(auth, e, p).then((c)=> {
-             updateProfile(c.user, {displayName:n});
-             set(ref(db, 'users/'+c.user.uid), {username:n, email:e, phone:ph, deposit:0, winning:0});
-             toggleLoader(false);
+         deviceLocked().then(locked => {
+             if(locked) { toggleLoader(false); return Swal.fire({ icon:'error', title:'এই ডিভাইসে হবে না', text:'এই ডিভাইস থেকে নতুন অ্যাকাউন্ট খোলা যাবে না।', confirmButtonText:'ঠিক আছে' }); }
+             return createUserWithEmailAndPassword(auth, e, p).then(async (c)=> {
+                 updateProfile(c.user, {displayName:n});
+                 try { await set(ref(db, 'users/'+c.user.uid), {username:n, email:e, phone:ph, deposit:0, winning:0}); } catch(x) {}
+                 await registerDevice();
+                 toggleLoader(false);
+             });
          }).catch(e=> { toggleLoader(false); Swal.fire('Error', authMsg(e), 'error'); });
     }
     
