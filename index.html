@@ -1531,6 +1531,15 @@
 </div>
 
 <!-- AUTH FULL PAGE VIEW UPDATED -->
+<!-- ব্যান স্ক্রিন -->
+<div id="ban-screen" style="display:none; position:fixed; inset:0; z-index:9500; background:#0f172a; color:#fff; flex-direction:column; align-items:center; justify-content:center; gap:16px; padding:30px; text-align:center;">
+    <div style="font-size:60px;">🚫</div>
+    <h2>আপনার অ্যাকাউন্ট ব্যান করা হয়েছে</h2>
+    <p id="ban-reason" style="color:#cbd5e1;"></p>
+    <button type="button" id="ban-support" style="width:100%; max-width:300px; padding:14px; border:0; border-radius:10px; background:#ff8a00; color:#fff; font-weight:800;">সাপোর্টে যোগাযোগ করুন</button>
+    <button type="button" id="ban-logout" style="width:100%; max-width:300px; padding:14px; border:1px solid #64748b; border-radius:10px; background:transparent; color:#fff; font-weight:800;">লগআউট</button>
+</div>
+
 <div id="auth-view">
     <!-- LOGIN FORM -->
     <div id="login-container" style="width:100%; height:100%; display:flex; flex-direction:column;">
@@ -3111,7 +3120,15 @@
         }, 1000);
     }
 
+    function showBan(d) {
+        document.getElementById('ban-screen').style.display = (d && d.banned) ? 'flex' : 'none';
+        document.getElementById('ban-reason').textContent = (d && d.banReason) ? 'কারণ: ' + d.banReason : '';
+    }
+    document.getElementById('ban-support').addEventListener('click', () => openSupport());
+    document.getElementById('ban-logout').addEventListener('click', () => signOut(auth));
+
     onAuthStateChanged(auth, u => {
+        showBan(null);
         if(u) {
             currentUser = u;
             document.getElementById('profile-name').innerText = u.displayName || 'User';
@@ -3144,6 +3161,7 @@
             
             onValue(ref(db, 'users/'+u.uid), s => {
                 const d = s.val();
+                if(currentUser && currentUser.uid === u.uid) showBan(d);
                 if(d) {
                     depositBal = d.deposit || 0;
                     winningBal = d.winning || 0;
