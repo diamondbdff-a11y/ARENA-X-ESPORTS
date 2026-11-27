@@ -1493,7 +1493,7 @@
     .top-header { position:fixed; top:0; left:0; right:0; height:60px; background:#fff; display:flex; align-items:center; gap:10px; padding:0 12px; box-shadow:0 1px 6px rgba(0,0,0,.1); z-index:900; }
     .top-header img { width:42px; height:42px; border-radius:10px; object-fit:cover; }
     .th-name { flex:1; min-width:0; font-size:14px; font-weight:900; color:#111; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-    .th-bell { background:none; border:0; font-size:20px; color:#111; padding:8px; margin-right:18px; cursor:pointer; }
+    .th-bell { position:relative; background:none; border:0; font-size:20px; color:#111; padding:8px; margin-right:18px; cursor:pointer; }
     .th-bal { display:flex; align-items:center; gap:5px; background:#fff; border:1.5px solid #e53935; color:#e53935; border-radius:18px; padding:5px 10px; font-weight:900; font-size:13px; cursor:pointer; white-space:nowrap; }
     .btn-refresh { flex:0 0 42px; width:42px; border:1px solid #1565C0; color:#1565C0; background:#fff; border-radius:4px; font-size:15px; cursor:pointer; display:flex; align-items:center; justify-content:center; }
     .btn-refresh:disabled { opacity:.6; }
@@ -1503,6 +1503,7 @@
     .mc-copy-txt span { font-size:10px; color:#777; font-weight:700; }
     .mc-copy-txt b { font-size:14px; color:#222; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
     .mc-copy-btn { flex:0 0 auto; border:0; background:#388E3C; color:#fff; border-radius:5px; padding:6px 8px; font-size:11px; font-weight:800; cursor:pointer; }
+    .th-badge { position:absolute; top:0; right:-2px; min-width:17px; height:17px; padding:0 4px; border-radius:9px; background:#e53935; color:#fff; font-size:10px; font-weight:900; line-height:17px; text-align:center; border:2px solid #fff; box-sizing:content-box; }
     body.sub-page .top-header { display:none; }
     body:not(.sub-page) #main-content { padding-top:60px; }
 </style>
@@ -1638,7 +1639,7 @@
     <header class="top-header">
         <img id="th-logo" alt="">
         <div class="th-name" id="th-name"></div>
-        <button type="button" class="th-bell" aria-label="Notifications" onclick="window.navigateSub('notifications')"><i class="fas fa-bell"></i></button>
+        <button type="button" class="th-bell" aria-label="Notifications" onclick="window.navigateSub('notifications')"><i class="fas fa-bell"></i><span class="th-badge" id="th-badge" style="display:none"></span></button>
         <button type="button" class="th-bal" onclick="window.navigateSub('wallet')"><i class="fas fa-wallet"></i> ৳ <span id="th-balance">0</span></button>
     </header>
 
@@ -3423,12 +3424,32 @@
          });
     }
     
+    function getSeenNotifs() { try { return JSON.parse(localStorage.getItem('seen_notifs') || '[]'); } catch (e) { return []; } }
+    function updateNotifBadge(keys) {
+        const b = document.getElementById('th-badge'); if (!b) return;
+        const seen = getSeenNotifs();
+        const n = keys.filter(k => seen.indexOf(k) === -1).length;
+        if (n > 0) { b.textContent = n > 9 ? '9+' : n; b.style.display = 'block'; } else { b.style.display = 'none'; }
+    }
+    function markNotifsSeen(keys) {
+        try { localStorage.setItem('seen_notifs', JSON.stringify(keys)); } catch (e) {}
+        updateNotifBadge(keys);
+    }
+    try {
+        onValue(ref(db, 'notifications'), s => {
+            const d = s.val(); const keys = d ? Object.keys(d) : [];
+            if (document.getElementById('notifications-view').classList.contains('active')) markNotifsSeen(keys);
+            else updateNotifBadge(keys);
+        });
+    } catch (e) {}
+
     function loadNotifs() {
         const l = document.getElementById('notif-list-container');
         if(!l) return;
         onValue(ref(db, 'notifications'), s => {
             l.innerHTML = "";
             const d = s.val();
+            if (document.getElementById('notifications-view').classList.contains('active')) markNotifsSeen(d ? Object.keys(d) : []);
             if(d) Object.values(d).reverse().forEach(n => {
                 l.innerHTML += `<div style="padding:15px; border-bottom:1px solid #eee; font-weight:bold;">${n.title}<br><span style="font-weight:normal; font-size:13px; color:#666;">${n.body}</span></div>`;
             });
