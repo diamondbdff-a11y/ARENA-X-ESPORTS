@@ -190,7 +190,8 @@
             font-weight: bold;
             border: 2px solid var(--bg-dark);
         }
-    </style>
+        .back-nav .back-btn { display: inline-flex; align-items: center; gap: 8px; padding: 6px 4px; cursor: pointer; }
+</style>
 </head>
 <body>
 
@@ -290,7 +291,7 @@
 
     <!-- CATEGORIES SECTION -->
     <section id="sec-categories" class="section">
-        <div class="back-nav" onclick="navTo('dashboard')"><i class="fas fa-chevron-left"></i> Back to Dashboard</div>
+        <div class="back-nav" onclick="navTo('dashboard')"><span class="back-btn"><i class="fas fa-chevron-left"></i> Back to Dashboard</span></div>
         <div class="list-container" id="category-list">
             <div style="text-align:center; padding:40px; color:var(--text-muted);">Loading categories...</div>
         </div>
@@ -299,7 +300,7 @@
 
     <!-- MATCHES SECTION -->
     <section id="sec-matches" class="section">
-        <div class="back-nav" onclick="navTo('dashboard')"><i class="fas fa-chevron-left"></i> Back to Dashboard</div>
+        <div class="back-nav" onclick="navTo('dashboard')"><span class="back-btn"><i class="fas fa-chevron-left"></i> Back to Dashboard</span></div>
         <div class="list-container" id="match-list">
             <div style="text-align:center; padding:40px; color:var(--text-muted);">Loading matches...</div>
         </div>
@@ -308,7 +309,7 @@
 
     <!-- USERS SECTION -->
     <section id="sec-users" class="section">
-        <div class="back-nav" onclick="navTo('dashboard')"><i class="fas fa-chevron-left"></i> Back to Dashboard</div>
+        <div class="back-nav" onclick="navTo('dashboard')"><span class="back-btn"><i class="fas fa-chevron-left"></i> Back to Dashboard</span></div>
         <div class="search-box">
             <i class="fas fa-search"></i>
             <input type="text" id="user-search" class="form-input search-input" placeholder="Search user name, email, uid..." onkeyup="filterUsers()">
@@ -318,7 +319,7 @@
 
     <!-- WITHDRAW SECTION -->
     <section id="sec-withdraw" class="section">
-        <div class="back-nav" onclick="navTo('dashboard')"><i class="fas fa-chevron-left"></i> Back to Dashboard</div>
+        <div class="back-nav" onclick="navTo('dashboard')"><span class="back-btn"><i class="fas fa-chevron-left"></i> Back to Dashboard</span></div>
         <div class="list-container" id="withdraw-list">
             <div style="text-align:center; padding:40px; color:var(--text-muted);">Loading withdrawal requests...</div>
         </div>
@@ -326,7 +327,7 @@
 
     <!-- SETTINGS SECTION -->
     <section id="sec-settings" class="section">
-        <div class="back-nav" onclick="navTo('dashboard')"><i class="fas fa-chevron-left"></i> Back to Dashboard</div>
+        <div class="back-nav" onclick="navTo('dashboard')"><span class="back-btn"><i class="fas fa-chevron-left"></i> Back to Dashboard</span></div>
         
         <div class="flat-card">
             <h4 style="margin-bottom:20px; color:var(--primary); font-weight:800;">General Info</h4>
@@ -345,6 +346,10 @@
             <div class="form-group">
                 <label class="form-label">Startup Popup Text</label>
                 <textarea id="set-popup" class="form-input" rows="3"></textarea>
+            </div>
+            <div class="form-group">
+                <label class="form-label">Rules (নিয়মাবলী) - ইউজার অ্যাপে দেখাবে</label>
+                <textarea id="set-rules" class="form-input" rows="8" placeholder="১। ...&#10;২। ..."></textarea>
             </div>
             <div class="form-group">
                 <label class="form-label">Enable Popup</label>
@@ -377,7 +382,7 @@
 
     <!-- SLIDER SECTION -->
     <section id="sec-sliders" class="section">
-        <div class="back-nav" onclick="navTo('dashboard')"><i class="fas fa-chevron-left"></i> Back to Dashboard</div>
+        <div class="back-nav" onclick="navTo('dashboard')"><span class="back-btn"><i class="fas fa-chevron-left"></i> Back to Dashboard</span></div>
         <div class="list-container" id="slider-list"></div>
         
         <div class="flat-card" style="margin-top:20px;">
@@ -390,7 +395,7 @@
 
     <!-- APK SECTION -->
     <section id="sec-apk" class="section">
-        <div class="back-nav" onclick="navTo('dashboard')"><i class="fas fa-chevron-left"></i> Back to Dashboard</div>
+        <div class="back-nav" onclick="navTo('dashboard')"><span class="back-btn"><i class="fas fa-chevron-left"></i> Back to Dashboard</span></div>
         <div class="flat-card">
             <h4 style="margin-bottom:20px; color:var(--success); font-weight:800;">Software / APK Download</h4>
             <div class="form-group"><label class="form-label">APK Download Link</label><input type="text" id="apk-url" class="form-input" placeholder="https://.../app.apk"></div>
@@ -405,7 +410,7 @@
 
     <!-- NOTIFICATION SECTION -->
     <section id="sec-notify" class="section">
-        <div class="back-nav" onclick="navTo('dashboard')"><i class="fas fa-chevron-left"></i> Back to Dashboard</div>
+        <div class="back-nav" onclick="navTo('dashboard')"><span class="back-btn"><i class="fas fa-chevron-left"></i> Back to Dashboard</span></div>
         <div class="flat-card">
             <div class="form-group">
                 <label class="form-label">Notification Title</label>
@@ -1088,6 +1093,7 @@ window.pickImg = function(id){
                     document.getElementById('set-vid-join').value = d.how_to_play_link || '';
                     document.getElementById('set-vid-room').value = d.how_to_get_room_id_link || '';
                     document.getElementById('set-extra').value = d.extra_links || '';
+                    document.getElementById('set-rules').value = d.rules || '';
                 }
             });
         }
@@ -1107,7 +1113,8 @@ window.pickImg = function(id){
                 how_to_add_money_link: document.getElementById('set-vid-add').value,
                 how_to_play_link: document.getElementById('set-vid-join').value,
                 how_to_get_room_id_link: document.getElementById('set-vid-room').value,
-                extra_links: document.getElementById('set-extra').value
+                extra_links: document.getElementById('set-extra').value,
+                rules: document.getElementById('set-rules').value
             };
             update(ref(db, 'app_settings'), data);
             Swal.fire({icon: 'success', title: 'Settings Saved', showConfirmButton: false, timer: 1500});
@@ -1184,5 +1191,12 @@ window.pickImg = function(id){
 
     
     </script>
+
+<script>
+document.addEventListener('click', function(e){
+    var bar = e.target.closest && e.target.closest('.back-nav');
+    if(bar && !e.target.closest('.back-btn')){ e.stopPropagation(); e.preventDefault(); }
+}, true);
+</script>
 </body>
 </html>

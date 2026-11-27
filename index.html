@@ -1456,6 +1456,8 @@
 
     /* --- NAV & UTILS --- */
     .back-nav { padding: 15px; color: #000; font-weight: 800; cursor: pointer; display: flex; align-items: center; gap: 10px; background: white; border-bottom: 1px solid #eee; font-size: 16px; width: 100%; position: sticky; top: 0; z-index: 100; }
+
+    .back-nav .back-btn { display: inline-flex; align-items: center; gap: 10px; padding: 6px 4px; cursor: pointer; }
     .back-nav.dark-mode { background: #000000; color: white; border-bottom: 1px solid #333; }
     .hidden { display: none !important; }
     .input-field { width: 100%; padding: 12px; border: 1px solid #ddd; border-radius: 5px; outline: none; margin-bottom: 15px; font-size: 14px; }
@@ -1738,6 +1740,11 @@
                     <span id="menu-notif-badge" style="background:red; color:white; font-size:10px; padding:2px 6px; border-radius:10px; margin-left:auto; display:none;">0</span>
                 </div>
 
+                <div class="menu-item" onclick="window.showRules()">
+                    <i class="fas fa-book" style="color:#7C4DFF; width:20px; font-size:20px;"></i>
+                    <span>Rules (নিয়মাবলী)</span>
+                    <i class="fas fa-chevron-right" style="margin-left:auto; color:#ccc;"></i>
+                </div>
                 <div id="extra-links-container"></div>
                 <div class="menu-item" onclick="window.handleLogout()" id="profile-logout-btn">
                     <i class="fas fa-sign-out-alt" style="color:var(--danger); width:20px;"></i>
@@ -1749,9 +1756,7 @@
     </section>
 
     <section id="matches-view" class="app-section">
-        <div class="back-nav" onclick="window.showTab('home')">
-            <i class="fas fa-arrow-left"></i> Back to Home
-        </div>
+        <div class="back-nav" onclick="window.showTab('home')"><span class="back-btn"><i class="fas fa-arrow-left"></i> Back to Home</span></div>
         
         <div class="match-tabs-container">
             <div class="m-tab active" id="mt-Upcoming" onclick="window.filterMatchTab('Upcoming')">Upcoming</div>
@@ -1764,7 +1769,7 @@
 
     <!-- NEW EDIT PROFILE PAGE -->
     <section id="edit-profile-view" class="app-section">
-        <div class="back-nav dark-mode" onclick="window.showTab('profile')"><i class="fas fa-arrow-left"></i> My Profile</div>
+        <div class="back-nav dark-mode" onclick="window.showTab('profile')"><span class="back-btn"><i class="fas fa-arrow-left"></i> My Profile</span></div>
         
         <div class="ep-container">
              <div class="ep-avatar-section">
@@ -1813,7 +1818,7 @@
 
 <!-- NEW MATCH DETAILS FULL PAGE -->
     <section id="match-details-view" class="app-section">
-        <div class="back-nav" onclick="window.showTab('mymatches')"><i class="fas fa-arrow-left"></i> Match Details</div>
+        <div class="back-nav" onclick="window.showTab('mymatches')"><span class="back-btn"><i class="fas fa-arrow-left"></i> Match Details</span></div>
         
         <div class="md-info-card">
              <div class="md-title" id="md-title">Match Name</div>
@@ -1834,7 +1839,7 @@
 
     <!-- NEW RESULT DETAILS FULL PAGE -->
     <section id="result-details-view" class="app-section">
-        <div class="back-nav dark-mode" onclick="window.showTab('result')"><i class="fas fa-arrow-left"></i> Results</div>
+        <div class="back-nav dark-mode" onclick="window.showTab('result')"><span class="back-btn"><i class="fas fa-arrow-left"></i> Results</span></div>
         
         <div id="rd-container">
             <!-- Populated via JS -->
@@ -1843,7 +1848,7 @@
 
     <!-- NEW JOIN MATCH FULL PAGE -->
     <section id="join-match-view" class="app-section">
-        <div class="back-nav" onclick="window.closeJoinPage()"><i class="fas fa-arrow-left"></i> Match Joining</div>
+        <div class="back-nav" onclick="window.closeJoinPage()"><span class="back-btn"><i class="fas fa-arrow-left"></i> Match Joining</span></div>
         
         <div class="join-card">
             <div class="join-match-title" id="join-page-title">Match Name</div>
@@ -1857,6 +1862,7 @@
             <div class="join-warning">
                 *অবশ্যই এখানে আপনার গেমের এর নামটি দিয়ে জয়েন করবেন।
             </div>
+            <div style="text-align:center; margin:8px 0;"><span onclick="window.showRules()" style="color:#7C4DFF; font-weight:700; text-decoration:underline; cursor:pointer;">ম্যাচের নিয়মাবলী দেখুন</span></div>
             
             <div class="join-badge-container">
                 <div class="join-badge" id="join-page-type">Solo</div>
@@ -1873,9 +1879,7 @@
     <!-- WALLET VIEW -->
     <section id="wallet-view" class="app-section">
         <div class="wallet-redesign-container">
-            <div class="back-nav dark-mode" onclick="window.showTab('profile')">
-                <i class="fas fa-arrow-left"></i> My Wallet
-            </div>
+            <div class="back-nav dark-mode" onclick="window.showTab('profile')"><span class="back-btn"><i class="fas fa-arrow-left"></i> My Wallet</span></div>
 
             <div class="wallet-gradient-card">
                 <div class="wg-header">
@@ -1963,7 +1967,7 @@
 
     <!-- ADD MONEY PAGE -->
     <section id="add-money-view" class="app-section">
-        <div class="back-nav" onclick="window.navigateSub('wallet')"><i class="fas fa-arrow-left"></i> Add Money</div>
+        <div class="back-nav" onclick="window.navigateSub('wallet')"><span class="back-btn"><i class="fas fa-arrow-left"></i> Add Money</span></div>
         
         <div class="am-method-grid">
             <div class="am-card active" id="tab-bkash" onclick="window.switchPayTab('bkash')">
@@ -2047,7 +2051,7 @@
 
     <!-- WITHDRAW VIEW -->
     <section id="withdraw-view" class="app-section">
-        <div class="back-nav dark-mode" onclick="window.navigateSub('wallet')"><i class="fas fa-arrow-left"></i> Withdraw Money</div>
+        <div class="back-nav dark-mode" onclick="window.navigateSub('wallet')"><span class="back-btn"><i class="fas fa-arrow-left"></i> Withdraw Money</span></div>
         
         <div class="withdraw-new-container">
             <div class="withdraw-balance-card">
@@ -2094,12 +2098,12 @@
     </section>
 
     <section id="history-view" class="app-section">
-        <div class="back-nav" onclick="window.navigateSub('wallet')"><i class="fas fa-arrow-left"></i> Transactions</div>
+        <div class="back-nav" onclick="window.navigateSub('wallet')"><span class="back-btn"><i class="fas fa-arrow-left"></i> Transactions</span></div>
         <div id="history-list" style="background:#f9f9f9; min-height:100vh;"></div>
     </section>
 
     <section id="notifications-view" class="app-section">
-        <div class="back-nav" onclick="window.showTab('profile')"><i class="fas fa-arrow-left"></i> Notifications</div>
+        <div class="back-nav" onclick="window.showTab('profile')"><span class="back-btn"><i class="fas fa-arrow-left"></i> Notifications</span></div>
         <div id="notif-list-container" style="background:white;"></div>
     </section>
 
@@ -2274,6 +2278,16 @@
     window.closeJoinPage = closeJoinPage;
 
 
+
+    window.showRules = () => {
+        const txt = String(window.appRules || '').trim();
+        const esc = x => x.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+        Swal.fire({
+            title: 'নিয়মাবলী',
+            html: '<div style="text-align:left; font-size:14px; line-height:1.7; max-height:55vh; overflow:auto;">' + (txt ? esc(txt).replace(/\n/g,'<br>') : 'এখনো কোনো রুলস দেওয়া হয়নি।') + '</div>',
+            confirmButtonText: 'ঠিক আছে'
+        });
+    };
     function renderExtraLinks(txt) {
         const box = document.getElementById('extra-links-container'); if(!box) return;
         box.innerHTML = '';
@@ -2496,6 +2510,7 @@
                 videoLinks.addMoney = d.how_to_add_money_link;
                 videoLinks.getRoom = d.how_to_get_room_id_link;
                 videoLinks.howPlay = d.how_to_play_link;
+                window.appRules = d.rules || '';
                 supportLink = d.support_link;
                 shopLink = d.shop_link;
                 renderExtraLinks(d.extra_links);
@@ -3529,6 +3544,13 @@
     document.querySelectorAll('.app-section, .modal').forEach(e => o.observe(e, { attributes: true, attributeFilter: ['class'] }));
     o.observe(main, { attributes: true, attributeFilter: ['style'] });
 })();
+</script>
+
+<script>
+document.addEventListener('click', function(e){
+    var bar = e.target.closest && e.target.closest('.back-nav');
+    if(bar && !e.target.closest('.back-btn')){ e.stopPropagation(); e.preventDefault(); }
+}, true);
 </script>
 </body>
 </html>
