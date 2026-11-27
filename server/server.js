@@ -14,7 +14,7 @@ const app = express();
 app.use(cors({ origin: process.env.ALLOWED_ORIGIN || '*' }));
 app.use(express.json({ limit: '10kb' }));
 
-app.get('/health', (req, res) => res.send('ok'));
+app.get('/health', (req, res) => { if (Date.now() - lastTick > 30000) tick(); res.send('ok'); });
 
 async function auth(req, res, next) {
   try {
@@ -130,6 +130,57 @@ app.post('/withdraw', auth, async (req, res) => {
     res.status(500).json({ error: 'সার্ভারে সমস্যা, আবার চেষ্টা করুন' });
   }
 });
+
+
+// ---------- ম্যাচের সময় অটো চলার সিস্টেম ----------
+// demo_ দিয়ে শুরু বা recurring:true ম্যাচ নিজে নিজে পরের স্লটে সরে যায়।
+// জয়েন থাকলে পুরোনোটা Ongoing হয়ে যায় আর নতুন Upcoming কপি তৈরি হয়।
+// অন্য ম্যাচের সময় পার হলে শুধু Ongoing হয়ে যায়।
+const STEP = 20 * 60000;
+let lastTick = 0, ticking = false;
+function fmtTime(ts) {
+  const p = {};
+  new Intl.DateTimeFormat('en-GB', { timeZone: 'Asia/Dhaka', year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hour12: false })
+    .formatToParts(new Date(ts)).forEach(x => { p[x.type] = x.value; });
+  let h = Number(p.hour) % 24; const ap = h >= 12 ? 'PM' : 'AM'; h = h % 12 || 12;
+  return `${p.year}-${p.month}-${p.day} at ${String(h).padStart(2, '0')}:${p.minute} ${ap}`;
+}
+async function tick() {
+  if (ticking) return;
+  ticking = true; lastTick = Date.now();
+  try {
+    const all = (await db.ref('matches').get()).val() || {};
+    const t = Date.now();
+    const demoCount = {}; let maxNo = 0;
+    Object.entries(all).forEach(([k, m]) => {
+      maxNo = Math.max(maxNo, Number(m.match_no) || 0);
+      if (k.startsWith('demo_')) demoCount[m.categoryId] = (demoCount[m.categoryId] || 0) + 1;
+    });
+    const up = {};
+    for (const [k, m] of Object.entries(all)) {
+      if (String(m.status || '').toLowerCase() !== 'upcoming') continue;
+      const ts = Number(m.timestamp);
+      if (!ts || ts > t) continue;
+      const recurring = m.recurring === true || k.startsWith('demo_');
+      if (!recurring) { up[k + '/status'] = 'Ongoing'; continue; }
+      const period = Number(m.period) || STEP * (demoCount[m.categoryId] || 1);
+      const next = ts + Math.ceil((t + 2 * 60000 - ts) / period) * period;
+      if (Number(m.joined) > 0) {
+        up[k + '/status'] = 'Ongoing';
+        up[k + '/recurring'] = false;
+        const nk = db.ref('matches').push().key;
+        up[nk] = { ...m, joined: 0, timestamp: next, time: fmtTime(next), status: 'Upcoming', room_id: '', room_pass: '', recurring: true, period, match_no: ++maxNo };
+      } else {
+        up[k + '/timestamp'] = next; up[k + '/time'] = fmtTime(next);
+        up[k + '/period'] = period; up[k + '/room_id'] = ''; up[k + '/room_pass'] = '';
+      }
+    }
+    if (Object.keys(up).length) { await db.ref('matches').update(up); console.log('tick updated', Object.keys(up).length); }
+  } catch (e) { console.error('tick error', e); }
+  ticking = false;
+}
+setInterval(tick, 60000);
+tick();
 
 const port = process.env.PORT || 3000;
 app.listen(port, () => console.log('server on', port));
