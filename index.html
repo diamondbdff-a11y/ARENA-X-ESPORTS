@@ -1543,9 +1543,9 @@
                  <span>I agree to the Terms and Conditions and Privacy Policy</span>
             </div>
 
-            <button class="auth-black-btn" onclick="window.emailLogin()">Sign Up</button> <!-- Text as per image -->
+            <button class="auth-black-btn" onclick="window.emailLogin()">Sign In</button>
             
-            <div class="auth-forget-link">Forget Password ?</div>
+            <div class="auth-forget-link" onclick="window.forgotPassword()">Forget Password ?</div>
             
             <div class="auth-footer-link">
                  Im a new user <span onclick="window.toggleAuthMode('register')">Register Now</span>
@@ -1585,7 +1585,7 @@
                  <span>I agree to the Terms and Conditions and Privacy Policy</span>
             </div>
 
-            <button class="auth-black-btn" onclick="window.emailRegister()">SING UP</button> <!-- Typo as per image -->
+            <button class="auth-black-btn" onclick="window.emailRegister()">SIGN UP</button>
             
             <div class="auth-footer-link">
                  Already have an account <span onclick="window.toggleAuthMode('login')">Sign in here</span>
@@ -2173,7 +2173,7 @@
 
 <script>setTimeout(function(){var sp=document.getElementById('app-splash');if(sp){sp.style.opacity='0';setTimeout(function(){sp.style.display='none'},500);}},8000);</script>
 <script type="module">
-    import { initializeApp, getDatabase, ref, set, onValue, push, update, get, serverTimestamp, getAuth, GoogleAuthProvider, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, onAuthStateChanged, updateProfile, updatePassword, reauthenticateWithCredential, EmailAuthProvider, fallbackImg, API_URL } from "./local-db.js";
+    import { initializeApp, getDatabase, ref, set, onValue, push, update, get, serverTimestamp, getAuth, GoogleAuthProvider, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, onAuthStateChanged, updateProfile, updatePassword, reauthenticateWithCredential, EmailAuthProvider, sendPasswordResetEmail, fallbackImg, API_URL } from "./local-db.js";
     window.addEventListener('error', e => { const t = e.target; if(t && t.tagName === 'IMG' && !t.dataset.fb){ t.dataset.fb = 1; t.src = fallbackImg('IMAGE'); } }, true);
 
     const app = initializeApp(); const db = getDatabase(app); const auth = getAuth(app);
@@ -2247,6 +2247,23 @@
         if(window._partsOn) return; window._partsOn = true;
         onValue(ref(db, 'match_participants'), s => { allParticipants = s.val() || {}; calculateJoinedMatches(); });
     };
+    window.forgotPassword = async () => {
+        const typed = document.getElementById('login-email').value.trim();
+        const r = await Swal.fire({ title:'পাসওয়ার্ড রিসেট', text:'আপনার ইমেইল দিন, রিসেট লিংক পাঠানো হবে', input:'email', inputValue: typed, inputPlaceholder:'Email Address', showCancelButton:true, confirmButtonText:'লিংক পাঠান', cancelButtonText:'বাতিল' });
+        if(!r.isConfirmed || !r.value) return;
+        try { await sendPasswordResetEmail(auth, r.value.trim()); Swal.fire('পাঠানো হয়েছে', 'ইমেইল চেক করুন (স্প্যাম ফোল্ডারও দেখুন)।', 'success'); }
+        catch(e) { Swal.fire('Error', e.message, 'error'); }
+    };
+    document.addEventListener('click', ev => {
+        const el = ev.target.closest && ev.target.closest('.auth-password-eye');
+        if(!el) return;
+        const inp = el.parentElement.querySelector('input');
+        if(!inp) return;
+        const show = inp.type === 'password';
+        inp.type = show ? 'text' : 'password';
+        el.classList.toggle('fa-eye', show);
+        el.classList.toggle('fa-eye-slash', !show);
+    });
     window.onload = () => { initData(); };
 
     function initData() {
@@ -3037,6 +3054,7 @@
             // Recalculate joined matches since currentUser is now set
             calculateJoinedMatches();
             window._startParts();
+            get(ref(db, 'users/'+u.uid)).then(sn => { if(!sn.exists()) return set(ref(db, 'users/'+u.uid), {username: u.displayName || 'User', email: u.email || '', phone: '', deposit: 0, winning: 0}); }).catch(()=>{});
             
             onValue(ref(db, 'users/'+u.uid), s => {
                 const d = s.val();
@@ -3072,7 +3090,7 @@
     }
 
     function emailLogin() {
-         const e = document.getElementById('login-email').value;
+         const e = document.getElementById('login-email').value.trim();
          const p = document.getElementById('login-pass').value;
          if(!e || !p) return Swal.fire('Error', "Please fill all fields", 'error');
          toggleLoader(true);
@@ -3083,7 +3101,7 @@
     
     function emailRegister() {
          const n = document.getElementById('reg-username').value;
-         const e = document.getElementById('reg-email').value;
+         const e = document.getElementById('reg-email').value.trim();
          const ph = document.getElementById('reg-phone').value;
          const p = document.getElementById('reg-pass').value;
          // reg-promo can be used if needed
