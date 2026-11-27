@@ -272,5 +272,9 @@ async function tick() {
 setInterval(tick, 60000);
 tick();
 
+// Render-এর ফ্রি সার্ভার যেন ঘুমিয়ে না পড়ে: প্রতি ১০ মিনিটে নিজেকে ডাকে
+const SELF_URL = process.env.RENDER_EXTERNAL_URL;
+if (SELF_URL) setInterval(() => fetch(SELF_URL + '/health').catch(() => {}), 10 * 60000);
+
 const port = process.env.PORT || 3000;
 app.listen(port, () => console.log('server on', port));
