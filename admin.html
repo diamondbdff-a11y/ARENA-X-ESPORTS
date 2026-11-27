@@ -433,6 +433,10 @@ window.pickImg = function(id){
         const auth = adminAuth();
         const ADMIN_EMAIL = "khelobangladeshlive344@gmail.com";
 
+        // ইউজারের দেওয়া ID/টাকার ঘরে কোড ঢুকতে না পারার ব্যবস্থা
+        const safeId = v => String(v == null ? '' : v).replace(/[^\w-]/g, '');
+        const num = v => Number(v) || 0;
+
         let allUsers = [];
         let allCategories = [];
         let pendingWithdrawals = [];
@@ -550,17 +554,17 @@ window.pickImg = function(id){
                     list.innerHTML += `
                     <div class="flat-card" style="border-left: 3px solid var(--warning)">
                         <div class="fc-header">
-                            <div class="fc-title" style="color:var(--warning)">৳${req.amount}</div>
+                            <div class="fc-title" style="color:var(--warning)">৳${num(req.amount)}</div>
                             <div class="fc-tag tag-yellow">PENDING</div>
                         </div>
-                        <div class="fc-detail"><span>User:</span> <span class="fc-value">${req.userName || req.userEmail || req.userId}</span></div>
-                        <div class="fc-detail"><span>Method:</span> <span class="fc-value">${req.method}</span></div>
-                        <div class="fc-detail"><span>Number:</span> <span class="fc-value">${req.mobileNumber}</span></div>
-                        <div class="fc-detail"><span>Date:</span> ${req.timestamp}</div>
+                        <div class="fc-detail"><span>User:</span> <span class="fc-value">${esc(req.userName || req.userEmail || req.userId)}</span></div>
+                        <div class="fc-detail"><span>Method:</span> <span class="fc-value">${esc(req.method)}</span></div>
+                        <div class="fc-detail"><span>Number:</span> <span class="fc-value">${esc(req.mobileNumber)}</span></div>
+                        <div class="fc-detail"><span>Date:</span> ${esc(req.timestamp)}</div>
                         
                         <div class="fc-actions">
-                            <button class="btn btn-success" onclick="approveWithdraw('${req.reqId}', '${req.userId}', ${req.amount})">Approve</button>
-                            <button class="btn btn-danger" onclick="rejectWithdraw('${req.reqId}', '${req.userId}', ${req.amount})">Reject</button>
+                            <button class="btn btn-success" onclick="approveWithdraw('${safeId(req.reqId)}', '${safeId(req.userId)}', ${num(req.amount)})">Approve</button>
+                            <button class="btn btn-danger" onclick="rejectWithdraw('${safeId(req.reqId)}', '${safeId(req.userId)}', ${num(req.amount)})">Reject</button>
                         </div>
                     </div>`;
                 });
@@ -923,14 +927,14 @@ window.pickImg = function(id){
             users.forEach(u => {
                 html += `
                 <div class="flat-card">
-                    <div class="fc-header"><div class="fc-title">${u.username || 'No Name'}</div></div>
-                    <div class="fc-detail"><span>Email:</span> ${u.email}</div>
-                    <div class="fc-detail"><span>UID:</span> ${u.uid}</div>
+                    <div class="fc-header"><div class="fc-title">${esc(u.username || 'No Name')}</div></div>
+                    <div class="fc-detail"><span>Email:</span> ${esc(u.email)}</div>
+                    <div class="fc-detail"><span>UID:</span> ${esc(u.uid)}</div>
                     <div style="display:flex; justify-content:space-between; margin-top:10px; background:#2a2a32; padding:10px; border-radius:8px;">
-                        <div style="text-align:center"><div style="font-size:10px; color:#aaa;">Deposit</div><div style="color:var(--success); font-weight:bold;">৳${u.deposit || 0}</div></div>
-                        <div style="text-align:center"><div style="font-size:10px; color:#aaa;">Winning</div><div style="color:var(--warning); font-weight:bold;">৳${u.winning || 0}</div></div>
+                        <div style="text-align:center"><div style="font-size:10px; color:#aaa;">Deposit</div><div style="color:var(--success); font-weight:bold;">৳${num(u.deposit)}</div></div>
+                        <div style="text-align:center"><div style="font-size:10px; color:#aaa;">Winning</div><div style="color:var(--warning); font-weight:bold;">৳${num(u.winning)}</div></div>
                     </div>
-                    <button class="btn btn-primary" style="width:100%; margin-top:10px;" onclick="editUserBalance('${u.uid}', ${u.deposit || 0}, ${u.winning || 0})">Edit Balance</button>
+                    <button class="btn btn-primary" style="width:100%; margin-top:10px;" onclick="editUserBalance('${safeId(u.uid)}', ${num(u.deposit)}, ${num(u.winning)})">Edit Balance</button>
                 </div>`;
             });
             list.innerHTML = html;
@@ -939,8 +943,8 @@ window.pickImg = function(id){
         window.filterUsers = () => {
             const q = document.getElementById('user-search').value.toLowerCase();
             const filtered = allUsers.filter(u => 
-                (u.username && u.username.toLowerCase().includes(q)) || 
-                (u.email && u.email.toLowerCase().includes(q)) ||
+                String(u.username || '').toLowerCase().includes(q) || 
+                String(u.email || '').toLowerCase().includes(q) ||
                 u.uid.toLowerCase().includes(q)
             );
             renderUsers(filtered);
