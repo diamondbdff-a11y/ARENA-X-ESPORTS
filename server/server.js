@@ -43,7 +43,7 @@ app.post('/join', auth, async (req, res) => {
     if (m.status && String(m.status).toLowerCase() !== 'upcoming') return res.status(400).json({ error: 'এই ম্যাচে এখন জয়েন করা যাবে না' });
     if (m.timestamp && m.timestamp < Date.now()) return res.status(400).json({ error: 'ম্যাচ শুরু হয়ে গেছে' });
     const need = TYPE_COUNT[String(m.type || '').toLowerCase()];
-    if (need && names.length !== need) return res.status(400).json({ error: 'প্লেয়ার সংখ্যা ঠিক নেই' });
+    if (need && names.length > need) return res.status(400).json({ error: 'প্লেয়ার সংখ্যা ঠিক নেই' });
 
     const parts = (await db.ref('match_participants/' + matchId).get()).val() || {};
     if (Object.values(parts).some(p => p.joinedBy === uid)) return res.status(400).json({ error: 'আপনি আগেই জয়েন করেছেন' });
