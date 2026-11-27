@@ -32,6 +32,9 @@
         * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Plus Jakarta Sans', sans-serif; user-select: none; -webkit-user-select: none; -webkit-tap-highlight-color: transparent; }
         input, textarea, select { user-select: text !important; -webkit-user-select: text !important; }
 
+        /* উপর থেকে টান দিলে রিফ্রেশ হবে না */
+        html, body { overscroll-behavior-y: none; }
+
         body { 
             background-color: var(--bg-dark); 
             background-image: radial-gradient(circle at 10% 20%, rgba(108, 99, 255, 0.1) 0%, transparent 40%);
@@ -56,6 +59,9 @@
         .logo-dot { width: 10px; height: 10px; background: var(--primary); border-radius: 50%; box-shadow: 0 0 10px var(--primary); }
         .logout-btn { width: 40px; height: 40px; border-radius: 12px; background: rgba(255, 68, 68, 0.15); display: flex; align-items: center; justify-content: center; cursor: pointer; color: var(--danger); transition: 0.3s; }
         .logout-btn:active { transform: scale(0.9); background: rgba(255, 68, 68, 0.3); }
+
+        .refresh-btn { width: 40px; height: 40px; border: 0; border-radius: 12px; background: rgba(108, 99, 255, 0.18); display: flex; align-items: center; justify-content: center; cursor: pointer; color: var(--primary); font-size: 16px; transition: 0.3s; }
+        .refresh-btn:active { transform: scale(0.9); background: rgba(108, 99, 255, 0.35); }
 
         /* SECTIONS ANIMATION */
         .section { display: none; padding: 24px;  }
@@ -191,7 +197,8 @@
     <!-- AUTH SCREEN -->
     <div id="auth-overlay">
         <div class="pin-title">ADMIN LOGIN</div>
-        <div style="width:86%;max-width:340px;display:flex;flex-direction:column;gap:12px;">
+        <div id="adm-wait" style="color:#94A3B8;font-size:15px;"><i class="fas fa-spinner fa-spin"></i> লোড হচ্ছে...</div>
+        <div id="adm-form" style="width:86%;max-width:340px;display:none;flex-direction:column;gap:12px;">
             <input id="adm-email" type="email" placeholder="Admin Email" style="padding:15px;border-radius:12px;border:1px solid #333;background:#11111a;color:#fff;font-size:16px;">
             <input id="adm-pass" type="password" placeholder="Password" style="padding:15px;border-radius:12px;border:1px solid #333;background:#11111a;color:#fff;font-size:16px;">
             <button onclick="adminLogin()" style="padding:15px;border:0;border-radius:12px;background:var(--primary);color:#000;font-weight:800;font-size:16px;">LOGIN</button>
@@ -204,7 +211,10 @@
         <div class="admin-logo">
             <div class="logo-dot"></div> ARENA X.ADMIN
         </div>
-        <div class="logout-btn" onclick="doLogout()"><i class="fas fa-power-off"></i></div>
+        <div style="display:flex;gap:12px;">
+            <button type="button" class="refresh-btn" onclick="refreshAdmin(this)" aria-label="রিফ্রেশ"><i class="fas fa-rotate-right"></i></button>
+            <div class="logout-btn" onclick="doLogout()"><i class="fas fa-power-off"></i></div>
+        </div>
     </div>
 
     <!-- DASHBOARD SECTION -->
@@ -414,6 +424,10 @@
 
     <script>
 window.addEventListener('error',function(e){var d=document.getElementById('err-box');if(!d){d=document.createElement('div');d.id='err-box';d.style.cssText='position:fixed;bottom:0;left:0;right:0;background:#b00020;color:#fff;font-size:12px;padding:8px;z-index:99999';document.body.appendChild(d);}d.textContent='Error: '+e.message;});
+window.showLogin=function(){document.getElementById('adm-wait').style.display='none';document.getElementById('adm-form').style.display='flex';};
+// নেট খুব ধীর হলে ১০ সেকেন্ড পর লগইন ফর্ম দেখাবে
+setTimeout(window.showLogin,10000);
+window.refreshAdmin=function(b){b.querySelector('i').classList.add('fa-spin');location.reload();};
 window.esc=function(t){return String(t==null?'':t).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];});};
 </script>
 <script>
@@ -451,6 +465,7 @@ window.pickImg = function(id){
                 if(!started) { started = true; initAdmin(); }
             } else {
                 if(u) signOut(auth);
+                showLogin();
                 document.getElementById('auth-overlay').style.display = 'flex';
             }
         });
@@ -461,7 +476,7 @@ window.pickImg = function(id){
             try { await signInWithEmailAndPassword(auth, e, p); }
             catch(x) { er.innerText = 'লগইন হয়নি: ' + (x.code || x.message); console.error(x); }
         };
-        window.doLogout = () => signOut(auth).then(() => location.reload());
+        window.doLogout = () => signOut(auth).then(() => { try { sessionStorage.removeItem('adm_sec'); } catch(e) {} location.reload(); });
 
         // --- ডেমো ডাটা বসানো (ক্যাটাগরি, ব্যানার, লোগো, ম্যাচ) ---
         window.seedDemo = async () => {
@@ -495,7 +510,10 @@ window.pickImg = function(id){
             document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
             const t=document.getElementById(`sec-${id}`); if(t) t.classList.add('active');
             window.scrollTo(0,0);
+            try { sessionStorage.setItem('adm_sec', id); } catch(e) {}
         }
+        // রিফ্রেশের পর আগের পেজেই থাকবে
+        try { const last = sessionStorage.getItem('adm_sec'); if(last) navTo(last); } catch(e) {}
 
         // --- INITIALIZATION ---
         function initAdmin() {
