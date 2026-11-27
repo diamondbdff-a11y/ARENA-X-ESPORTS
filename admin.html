@@ -426,10 +426,10 @@ window.pickImg = function(id){
 };
 </script>
 <script type="module">
-        import { getDatabase, ref, set, onValue, push, update, remove, get, getAuth, signInWithEmailAndPassword, onAuthStateChanged, signOut } from "./local-db.js";
+        import { adminDb, ref, set, onValue, push, update, remove, get, adminAuth, signInWithEmailAndPassword, onAuthStateChanged, signOut } from "./local-db.js";
         import { IMG, BAN, LOGO } from "./images.js";
-        const db = getDatabase();
-        const auth = getAuth();
+        const db = adminDb();
+        const auth = adminAuth();
         const ADMIN_EMAIL = "khelobangladeshlive344@gmail.com";
 
         let allUsers = [];
@@ -965,8 +965,11 @@ window.pickImg = function(id){
             });
 
             if (formValues) {
-                update(ref(db, `users/${uid}`), formValues);
-                Swal.fire({icon:'success', title:'Updated', showConfirmButton:false, timer:1000});
+                if (!Number.isFinite(formValues.deposit) || !Number.isFinite(formValues.winning)) return Swal.fire('Error', 'সঠিক সংখ্যা দিন', 'error');
+                try {
+                    await update(ref(db, `users/${uid}`), formValues);
+                    Swal.fire({icon:'success', title:'Updated', showConfirmButton:false, timer:1000});
+                } catch(e) { Swal.fire('Error', e.message, 'error'); }
             }
         }
 
