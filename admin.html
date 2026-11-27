@@ -443,7 +443,7 @@ window.pickImg = function(id){
 };
 </script>
 <script type="module">
-        import { adminDb, ref, set, onValue, push, update, remove, get, adminAuth, signInWithEmailAndPassword, onAuthStateChanged, signOut } from "./local-db.js";
+        import { adminDb, ref, set, onValue, push, update, remove, get, adminAuth, signInWithEmailAndPassword, onAuthStateChanged, signOut, API_URL } from "./local-db.js";
         import { IMG, BAN, LOGO } from "./images.js";
         const db = adminDb();
         const auth = adminAuth();
@@ -522,7 +522,7 @@ window.pickImg = function(id){
                 if(d) {
                     allUsers = Object.entries(d).map(([k,v]) => ({uid:k, ...v}));
                     document.getElementById('stat-users').innerText = allUsers.length;
-                    renderUsers(allUsers);
+                    filterUsers();
                 }
             });
             
@@ -799,6 +799,7 @@ window.pickImg = function(id){
                         <div class="fc-actions">
                             <button class="btn btn-primary" onclick="editMatch('${key}')"><i class="fas fa-cog"></i> Manage</button>
                             <button class="btn btn-danger" onclick="deleteMatch('${key}')"><i class="fas fa-trash"></i></button>
+                            <button class="btn btn-success" style="grid-column:1/-1" onclick="showPlayers('${safeId(key)}')"><i class="fas fa-users"></i> প্লেয়ার লিস্ট / ব্যান</button>
                         </div>
                     </div>`;
                 });
@@ -947,7 +948,8 @@ window.pickImg = function(id){
             users.forEach(u => {
                 html += `
                 <div class="flat-card">
-                    <div class="fc-header"><div class="fc-title">${esc(u.username || 'No Name')}</div></div>
+                    <div class="fc-header"><div class="fc-title">${esc(u.username || 'No Name')}</div>${u.banned ? '<div class="fc-tag" style="background:rgba(255,68,68,0.15);color:var(--danger);border:1px solid rgba(255,68,68,0.3)">BANNED</div>' : ''}</div>
+                    ${u.banned && u.banReason ? `<div class="fc-detail"><span>ব্যানের কারণ:</span> <span class="fc-value">${esc(u.banReason)}</span></div>` : ''}
                     <div class="fc-detail"><span>Email:</span> ${esc(u.email)}</div>
                     <div class="fc-detail"><span>UID:</span> ${esc(u.uid)}</div>
                     <div style="display:flex; justify-content:space-between; margin-top:10px; background:#2a2a32; padding:10px; border-radius:8px;">
@@ -955,6 +957,7 @@ window.pickImg = function(id){
                         <div style="text-align:center"><div style="font-size:10px; color:#aaa;">Winning</div><div style="color:var(--warning); font-weight:bold;">৳${num(u.winning)}</div></div>
                     </div>
                     <button class="btn btn-primary" style="width:100%; margin-top:10px;" onclick="editUserBalance('${safeId(u.uid)}', ${num(u.deposit)}, ${num(u.winning)})">Edit Balance</button>
+                    <button class="btn ${u.banned ? 'btn-success' : 'btn-danger'}" style="width:100%; margin-top:10px;" onclick="banUser('${safeId(u.uid)}', ${u.banned ? 'false' : 'true'})"><i class="fas ${u.banned ? 'fa-unlock' : 'fa-ban'}"></i> ${u.banned ? 'ব্যান তুলে দাও' : 'ব্যান করো'}</button>
                 </div>`;
             });
             list.innerHTML = html;
@@ -997,6 +1000,48 @@ window.pickImg = function(id){
                 } catch(e) { Swal.fire('Error', e.message, 'error'); }
             }
         }
+
+        // --- ব্যান সিস্টেম ---
+        window.banUser = async (uid, ban) => {
+            const u = allUsers.find(x => x.uid === uid) || {};
+            const name = u.username || u.email || uid;
+            const r = await Swal.fire({
+                title: ban ? 'ইউজার ব্যান করবে?' : 'ব্যান তুলে দিবে?',
+                text: name,
+                icon: ban ? 'warning' : 'question',
+                input: ban ? 'text' : undefined,
+                inputValue: ban ? 'হ্যাক ব্যবহার' : undefined,
+                inputLabel: ban ? 'ব্যানের কারণ (ইউজার দেখতে পাবে)' : undefined,
+                inputAttributes: { maxlength: 100 },
+                showCancelButton: true,
+                confirmButtonText: ban ? 'ব্যান করো' : 'তুলে দাও',
+                cancelButtonText: 'বাতিল'
+            });
+            if(!r.isConfirmed) return;
+            Swal.fire({ title: 'অপেক্ষা করো...', text: 'সার্ভার ঘুমিয়ে থাকলে ১ মিনিট লাগতে পারে', allowOutsideClick: false, showConfirmButton: false, didOpen: () => Swal.showLoading() });
+            try {
+                const token = await auth.currentUser.getIdToken();
+                const res = await fetch(API_URL + '/admin/ban', { method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token }, body: JSON.stringify({ uid, ban, reason: ban ? r.value : '' }) });
+                let j = {}; try { j = await res.json(); } catch(e) {}
+                if(!res.ok) throw new Error(j.error || (res.status === 404 ? 'সার্ভারে নতুন server.js এখনো চালু হয়নি' : 'সার্ভারে সমস্যা (' + res.status + ')'));
+                Swal.fire({ icon: 'success', title: ban ? 'ব্যান হয়েছে' : 'ব্যান তুলে দেওয়া হয়েছে', timer: 1500, showConfirmButton: false });
+            } catch(e) { Swal.fire('হয়নি', e.message, 'error'); }
+        };
+
+        window.showPlayers = async (key) => {
+            try {
+                const parts = (await get(ref(db, `match_participants/${key}`))).val() || {};
+                const rows = Object.values(parts).map(p => {
+                    const uid = safeId(p.joinedBy);
+                    const u = allUsers.find(x => x.uid === uid) || {};
+                    return `<div style="display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--border);text-align:left">
+                        <div style="flex:1;min-width:0;overflow-wrap:anywhere"><div style="font-weight:700;color:#fff">${esc(p.ign)}</div><div style="font-size:12px;color:var(--text-muted)">${esc(u.username || u.email || uid)}${u.banned ? ' · BANNED' : ''}</div></div>
+                        <button class="btn ${u.banned ? 'btn-success' : 'btn-danger'}" onclick="banUser('${uid}', ${u.banned ? 'false' : 'true'})">${u.banned ? 'আনব্যান' : 'ব্যান'}</button>
+                    </div>`;
+                }).join('');
+                Swal.fire({ title: 'প্লেয়ার লিস্ট', html: rows || 'এই ম্যাচে কেউ জয়েন করেনি', confirmButtonText: 'বন্ধ' });
+            } catch(e) { Swal.fire('Error', e.message, 'error'); }
+        };
 
         // --- CHANGE PIN POPUP ---
         window.changeAdminPinPopup = async () => {
