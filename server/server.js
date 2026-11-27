@@ -1,6 +1,7 @@
 // ARENA X ESPORTS - নিরাপদ সার্ভার (জয়েন + উইথড্র)
 const express = require('express');
 const cors = require('cors');
+const zlib = require('zlib');
 const admin = require('firebase-admin');
 
 const sa = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT || '{}');
@@ -15,6 +16,82 @@ app.use(cors({ origin: process.env.ALLOWED_ORIGIN || '*' }));
 app.use(express.json({ limit: '10kb' }));
 
 app.get('/health', (req, res) => { if (Date.now() - lastTick > 30000) tick(); res.send('ok'); });
+
+// ---------- অ্যাপ আইকন (সার্ভার নিজেই PNG বানায়, আপলোড লাগে না) ----------
+const CRC_TABLE = (() => {
+  const t = new Uint32Array(256);
+  for (let n = 0; n < 256; n++) {
+    let c = n;
+    for (let k = 0; k < 8; k++) c = c & 1 ? 0xedb88320 ^ (c >>> 1) : c >>> 1;
+    t[n] = c >>> 0;
+  }
+  return t;
+})();
+function crc32(buf) {
+  let c = 0xffffffff;
+  for (let i = 0; i < buf.length; i++) c = CRC_TABLE[(c ^ buf[i]) & 0xff] ^ (c >>> 8);
+  return (c ^ 0xffffffff) >>> 0;
+}
+function pngChunk(type, data) {
+  const len = Buffer.alloc(4); len.writeUInt32BE(data.length);
+  const td = Buffer.concat([Buffer.from(type, 'ascii'), data]);
+  const crc = Buffer.alloc(4); crc.writeUInt32BE(crc32(td));
+  return Buffer.concat([len, td, crc]);
+}
+function makeIcon(size) {
+  const rowLen = size * 4 + 1;
+  const raw = Buffer.alloc(rowLen * size);
+  const half = size / 2;
+  const th = size * 0.075;   // X এর মোটা ভাব
+  const reach = size * 0.24; // X কতটা বড়
+  for (let y = 0; y < size; y++) {
+    raw[y * rowLen] = 0;
+    // ব্যাকগ্রাউন্ড গ্রেডিয়েন্ট (#0f172a থেকে #1e1b4b)
+    const gt = y / size;
+    const br = Math.round(15 + (30 - 15) * gt);
+    const bg = Math.round(23 + (27 - 23) * gt);
+    const bb = Math.round(42 + (75 - 42) * gt);
+    for (let x = 0; x < size; x++) {
+      let r = br, g = bg, b = bb;
+      const cx = x - half, cy = y - half;
+      if (Math.abs(cx) <= reach && Math.abs(cy) <= reach) {
+        const d1 = Math.abs(cx - cy) / Math.SQRT2;
+        const d2 = Math.abs(cx + cy) / Math.SQRT2;
+        const d = Math.min(d1, d2);
+        const a = Math.max(0, Math.min(1, th - d + 0.5));
+        if (a > 0) {
+          // কমলা গ্রেডিয়েন্ট (#ff9a00 থেকে #ff4d00)
+          const t2 = (cy + reach) / (2 * reach);
+          const xr = 255, xg = Math.round(154 + (77 - 154) * t2), xb = 0;
+          r = Math.round(r + (xr - r) * a);
+          g = Math.round(g + (xg - g) * a);
+          b = Math.round(b + (xb - b) * a);
+        }
+      }
+      const i = y * rowLen + 1 + x * 4;
+      raw[i] = r; raw[i + 1] = g; raw[i + 2] = b; raw[i + 3] = 255;
+    }
+  }
+  const ihdr = Buffer.alloc(13);
+  ihdr.writeUInt32BE(size, 0); ihdr.writeUInt32BE(size, 4);
+  ihdr[8] = 8; ihdr[9] = 6; ihdr[10] = 0; ihdr[11] = 0; ihdr[12] = 0;
+  return Buffer.concat([
+    Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]),
+    pngChunk('IHDR', ihdr),
+    pngChunk('IDAT', zlib.deflateSync(raw, { level: 9 })),
+    pngChunk('IEND', Buffer.alloc(0))
+  ]);
+}
+const ICONS = {};
+function sendIcon(size) {
+  return (req, res) => {
+    if (!ICONS[size]) ICONS[size] = makeIcon(size);
+    res.set({ 'Content-Type': 'image/png', 'Cache-Control': 'public, max-age=86400', 'Access-Control-Allow-Origin': '*' });
+    res.send(ICONS[size]);
+  };
+}
+app.get('/icon-192.png', sendIcon(192));
+app.get('/icon-512.png', sendIcon(512));
 
 async function auth(req, res, next) {
   try {
