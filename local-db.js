@@ -1,7 +1,7 @@
 // ===== আসল Firebase ডাটাবেজ (ARENA X ESPORTS) =====
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
 import { getDatabase, ref, set, onValue, push, update, get, remove, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
-import { getAuth, GoogleAuthProvider, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, onAuthStateChanged, updateProfile, updatePassword, reauthenticateWithCredential, EmailAuthProvider, sendPasswordResetEmail } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
+import { getAuth, GoogleAuthProvider, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, onAuthStateChanged, updateProfile, updatePassword, reauthenticateWithCredential, EmailAuthProvider, sendPasswordResetEmail, signInWithPopup } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
 
 const firebaseConfig = {
   apiKey: "AIzaSyATF2hIKBzORr3VPc5wAsAoWihqZTodVw4",
@@ -29,4 +29,4 @@ const wrapAuth = () => _auth;
 
 export const fallbackImg = (t) => 'data:image/svg+xml;utf8,' + encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" width="400" height="220"><rect width="400" height="220" fill="#37474f"/><text x="200" y="118" font-family="Arial" font-weight="900" font-size="28" fill="#fff" text-anchor="middle">${t||'IMAGE'}</text></svg>`);
 
-export { wrapInit as initializeApp, wrapDb as getDatabase, ref, set, onValue, push, update, get, remove, serverTimestamp, wrapAuth as getAuth, GoogleAuthProvider, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, onAuthStateChanged, updateProfile, updatePassword, reauthenticateWithCredential, EmailAuthProvider, sendPasswordResetEmail };
+export { wrapInit as initializeApp, wrapDb as getDatabase, ref, set, onValue, push, update, get, remove, serverTimestamp, wrapAuth as getAuth, GoogleAuthProvider, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, onAuthStateChanged, updateProfile, updatePassword, reauthenticateWithCredential, EmailAuthProvider, sendPasswordResetEmail, signInWithPopup };
