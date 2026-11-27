@@ -2835,8 +2835,9 @@
          const ic = document.getElementById('join-inputs-container');
          ic.innerHTML = "";
          for(let i=1; i<=slots; i++) {
-             ic.innerHTML += `<input type="text" class="join-input p-name" placeholder="Player ${i} গেমের নাম (In-game Name)" autocomplete="off">`;
+             ic.innerHTML += `<input type="text" class="join-input p-name" placeholder="Player ${i} গেমের নাম${i>1?' (ঐচ্ছিক)':''}" autocomplete="off">`;
          }
+         if(slots > 1) ic.innerHTML += `<div style="font-size:13px;color:#777;margin-top:6px;line-height:1.5">একা জয়েন করতে চাইলে শুধু Player 1 এর নাম দিন। ${slots} জন নিয়ে জয়েন করতে সবার নাম দিন। এন্ট্রি ফি প্রতি প্লেয়ার ${fee} TK।</div>`;
          
          // Store Key for Confirm (redundant but safe)
          document.querySelector('.join-btn-full').dataset.key = key;
@@ -2877,8 +2878,8 @@
          const inps = document.querySelectorAll('.p-name');
          let count = 0;
          let names = [];
-         inps.forEach(i => { if(i.value) { count++; names.push(i.value); } });
-         if(count !== inps.length) return Swal.fire('Error', "Fill all names", 'error');
+         inps.forEach(i => { const v = i.value.trim(); if(v) { count++; names.push(v); } });
+         if(count < 1 || !inps[0].value.trim()) return Swal.fire('Error', "Player 1 এর গেমের নাম দিন", 'error');
          
          const total = currentEntryFee * count;
          if((depositBal + winningBal) < total) return Swal.fire('Error', "Insufficient Balance", 'error');
