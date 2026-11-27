@@ -102,20 +102,98 @@ async function auth(req, res, next) {
   } catch (e) { res.status(401).json({ error: 'লগইন করুন' }); }
 }
 
-// ---------- ব্যান সিস্টেম ----------
+// ---------- ব্যান সিস্টেম (অ্যাকাউন্ট + ডিভাইস + মোবাইল নম্বর + উইথড্র নম্বর) ----------
+// ডাটাবেসে যা জমা থাকে:
+//   banned/{uid}            -> ব্যানের তথ্য (কারণ, কোন ডিভাইস/নম্বর ব্যান হয়েছে)
+//   banned_devices/{did}    -> ব্যান বা লক হওয়া ডিভাইস (allowedUid থাকলে শুধু ওই অ্যাকাউন্ট চলবে)
+//   banned_phones/{phone}   -> ব্যান হওয়া মোবাইল নম্বর
+//   banned_numbers/{number} -> ব্যান হওয়া উইথড্র নম্বর (bKash/Nagad/Rocket)
+//   user_devices/{uid}/{did}-> কোন ইউজার কোন ডিভাইস থেকে ঢুকেছে
 const ADMIN_EMAIL = process.env.ADMIN_EMAIL || 'khelobangladeshlive344@gmail.com';
+const DEVICE_RE = /^[\w-]{16,64}$/;
+const PHONE_RE = /^01\d{9}$/;
+const val = async p => (await db.ref(p).get()).val();
+const getDeviceId = req => { const d = String(req.headers['x-device-id'] || '').trim(); return DEVICE_RE.test(d) ? d : ''; };
+const MSG_DEVICE = 'এই ডিভাইসে হবে না';
+const MSG_PHONE = 'এই মোবাইল নম্বরটি ব্যান করা আছে';
 
-// ব্যান করা ইউজার জয়েন বা উইথড্র করতে পারবে না
+// ডিভাইস ব্যান/লক থাকলে এন্ট্রি ফেরত দেয়। যে অ্যাকাউন্টকে অনুমতি দেওয়া হয়েছে (আনব্যান হওয়া মালিক) তার জন্য null।
+async function deviceBlocked(did, uid) {
+  const d = await val('banned_devices/' + did);
+  if (!d) return null;
+  if (d.allowedUid && d.allowedUid === uid) return null;
+  return d;
+}
+
+// ব্যান করা ইউজার, ব্যান ডিভাইস বা ব্যান নম্বর জয়েন বা উইথড্র করতে পারবে না
 async function notBanned(req, res, next) {
   try {
-    const b = (await db.ref('banned/' + req.user.uid).get()).val();
-    if (b) return res.status(403).json({ error: 'আপনার অ্যাকাউন্ট ব্যান করা হয়েছে' + (b.reason ? ' (কারণ: ' + b.reason + ')' : '') });
+    const uid = req.user.uid;
+    const b = await val('banned/' + uid);
+    if (b) return res.status(403).json({ code: 'user_banned', error: 'আপনার অ্যাকাউন্ট ব্যান করা হয়েছে' + (b.reason ? ' (কারণ: ' + b.reason + ')' : '') });
+    const did = getDeviceId(req);
+    if (!did) return res.status(400).json({ error: 'অ্যাপ রিফ্রেশ করে আবার চেষ্টা করুন' });
+    if (await deviceBlocked(did, uid)) return res.status(403).json({ code: 'device_blocked', error: MSG_DEVICE });
+    const phone = String((await val('users/' + uid + '/phone')) || '');
+    if (PHONE_RE.test(phone)) {
+      const pb = await val('banned_phones/' + phone);
+      if (pb && pb.uid !== uid) return res.status(403).json({ code: 'phone_banned', error: MSG_PHONE });
+    }
     next();
   } catch (e) {
     console.error('ban check error', e);
     res.status(500).json({ error: 'সার্ভারে সমস্যা, আবার চেষ্টা করুন' });
   }
 }
+
+// অ্যাকাউন্ট খোলার আগে অ্যাপ জিজ্ঞেস করে: এই ডিভাইসে নতুন অ্যাকাউন্ট খোলা যাবে কিনা (লগইন লাগে না)
+app.get('/device/check', async (req, res) => {
+  try {
+    const id = String(req.query.id || '');
+    if (!DEVICE_RE.test(id)) return res.json({ blocked: false });
+    res.json({ blocked: !!(await val('banned_devices/' + id)) });
+  } catch (e) { res.json({ blocked: false }); }
+});
+
+// লগইন বা সাইনআপের পর অ্যাপ ডিভাইস জানায়। ডিভাইস/নম্বর ব্যান থাকলে নতুন অ্যাকাউন্ট মুছে দেওয়া হয়
+app.post('/device/register', auth, async (req, res) => {
+  const uid = req.user.uid;
+  const did = getDeviceId(req);
+  if (!did) return res.status(400).json({ error: 'ভুল ডিভাইস' });
+  try {
+    const banInfo = await val('banned/' + uid);
+    const blocked = await deviceBlocked(did, uid);
+    const phone = String((await val('users/' + uid + '/phone')) || '');
+    let phoneBlocked = false;
+    if (PHONE_RE.test(phone)) {
+      const pb = await val('banned_phones/' + phone);
+      phoneBlocked = !!(pb && pb.uid !== uid);
+    }
+    if (blocked || phoneBlocked) {
+      // একদম নতুন অ্যাকাউন্ট (১০ মিনিটের মধ্যে খোলা) হলে মুছে ফেলা হয়
+      let deleted = false;
+      try {
+        const rec = await admin.auth().getUser(uid);
+        const age = Date.now() - new Date(rec.metadata.creationTime).getTime();
+        if (age < 10 * 60000) {
+          await admin.auth().deleteUser(uid);
+          await db.ref('users/' + uid).remove();
+          deleted = true;
+        }
+      } catch (e) { console.error('delete new account error', e); }
+      console.log('blocked register', uid, blocked ? 'device' : 'phone', deleted ? 'deleted' : '');
+      return res.status(403).json({ code: blocked ? 'device_blocked' : 'phone_banned', error: blocked ? MSG_DEVICE : MSG_PHONE, deleted });
+    }
+    const up = { ['user_devices/' + uid + '/' + did]: now() };
+    // ব্যান থাকা ইউজার নতুন ডিভাইসে ঢুকলে সেটাও ব্যান হয়ে যায়
+    if (banInfo) up['banned_devices/' + did] = { uid, reason: banInfo.reason || '', date: now() };
+    await db.ref().update(up);
+    res.json({ ok: true });
+  } catch (e) {
+    console.error('device register error', e);
+    res.status(500).json({ error: 'সার্ভারে সমস্যা' });
+  }
+});
 
 // শুধু অ্যাডমিন ব্যান / আনব্যান করতে পারবে
 app.post('/admin/ban', auth, async (req, res) => {
@@ -126,15 +204,43 @@ app.post('/admin/ban', auth, async (req, res) => {
   if (!/^[\w-]{1,128}$/.test(uid)) return res.status(400).json({ error: 'ভুল ইউজার' });
   if (uid === req.user.uid) return res.status(400).json({ error: 'নিজেকে ব্যান করা যাবে না' });
   try {
-    const exists = (await db.ref('users/' + uid).get()).exists();
-    if (!exists) return res.status(404).json({ error: 'ইউজার পাওয়া যায়নি' });
-    await db.ref().update({
-      ['banned/' + uid]: ban ? { reason, date: now() } : null,
-      ['users/' + uid + '/banned']: ban ? true : null,
-      ['users/' + uid + '/banReason']: ban ? reason : null
-    });
-    console.log(ban ? 'banned' : 'unbanned', uid);
-    res.json({ ok: true });
+    const u = (await db.ref('users/' + uid).get()).val();
+    if (!u) return res.status(404).json({ error: 'ইউজার পাওয়া যায়নি' });
+    const date = now();
+    const devices = Object.keys((await val('user_devices/' + uid)) || {}).filter(d => DEVICE_RE.test(d));
+    const up = {};
+
+    if (ban) {
+      const phone = PHONE_RE.test(String(u.phone || '')) ? String(u.phone) : '';
+      const nums = new Set();
+      if (phone) nums.add(phone);
+      const tx = (await val('transactions/' + uid)) || {};
+      Object.values(tx).forEach(t => { if (t && t.type === 'Withdraw Request' && PHONE_RE.test(String(t.number || ''))) nums.add(String(t.number)); });
+      const numbers = [...nums];
+      up['banned/' + uid] = { reason, date, devices, phone, numbers };
+      up['users/' + uid + '/banned'] = true;
+      up['users/' + uid + '/banReason'] = reason;
+      devices.forEach(d => { up['banned_devices/' + d] = { uid, reason, date }; });
+      if (phone) up['banned_phones/' + phone] = { uid, reason, date };
+      numbers.forEach(n => { up['banned_numbers/' + n] = { uid, reason, date }; });
+      await db.ref().update(up);
+      console.log('banned', uid, 'devices', devices.length, 'numbers', numbers.length);
+      return res.json({ ok: true, devices: devices.length, phones: phone ? 1 : 0, numbers: numbers.length });
+    }
+
+    // আনব্যান: অ্যাকাউন্ট, মোবাইল নম্বর ও উইথড্র নম্বর ছাড়া পায়।
+    // ডিভাইস লক থেকে যায়: ওই ডিভাইসে শুধু এই অ্যাকাউন্ট চলবে, অন্য কোনো অ্যাকাউন্ট খোলা বা লগইন করা যাবে না।
+    const info = (await val('banned/' + uid)) || {};
+    const all = new Set([...(info.devices || []), ...devices]);
+    all.forEach(d => { up['banned_devices/' + d] = { uid, allowedUid: uid, date }; });
+    if (info.phone) up['banned_phones/' + info.phone] = null;
+    (info.numbers || []).forEach(n => { up['banned_numbers/' + n] = null; });
+    up['banned/' + uid] = null;
+    up['users/' + uid + '/banned'] = null;
+    up['users/' + uid + '/banReason'] = null;
+    await db.ref().update(up);
+    console.log('unbanned', uid, 'devices locked to owner', all.size);
+    res.json({ ok: true, devices: all.size });
   } catch (e) {
     console.error('ban error', e);
     res.status(500).json({ error: 'সার্ভারে সমস্যা, আবার চেষ্টা করুন' });
@@ -218,6 +324,9 @@ app.post('/withdraw', auth, notBanned, async (req, res) => {
   if (!Number.isFinite(amount) || amount < 100) return res.status(400).json({ error: 'সর্বনিম্ন উইথড্র ১০০ টাকা' });
   if (!['bKash', 'Nagad', 'Rocket'].includes(method)) return res.status(400).json({ error: 'ভুল মেথড' });
   if (!/^01\d{9}$/.test(number)) return res.status(400).json({ error: 'সঠিক মোবাইল নম্বর দিন (১১ ডিজিট)' });
+  try {
+    if (await val('banned_numbers/' + number)) return res.status(403).json({ code: 'number_banned', error: 'এই নম্বরে উইথড্র করা যাবে না' });
+  } catch (e) { return res.status(500).json({ error: 'সার্ভারে সমস্যা, আবার চেষ্টা করুন' }); }
 
   try {
     const r = await db.ref('users/' + uid + '/winning').transaction(w => {
