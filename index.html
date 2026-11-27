@@ -2206,6 +2206,8 @@
     let shopLink = "";
     let currentPayMethod = 'bkash';
     let allParticipants = {};
+    // প্লেয়ারের নামে কোড থাকলে সেটা শুধু লেখা হিসেবে দেখাবে
+    const esc = t => String(t == null ? '' : t).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 
     // Expose functions to window
     window.verifyAutoPay = verifyAutoPay;
@@ -2708,7 +2710,7 @@
                      pList.innerHTML += `
                      <div class="md-p-row">
                          <div style="width:10%">${idx+1}</div>
-                         <div style="width:50%">${p.ign || 'Unknown'}</div>
+                         <div style="width:50%">${esc(p.ign || 'Unknown')}</div>
                          <div style="width:20%; text-align:center;">${p.kills || 0}</div>
                          <div style="width:20%; text-align:right;">${p.win || 0}</div>
                      </div>
@@ -2746,7 +2748,7 @@
                 const row = `
                 <div class="rd-row">
                     <div class="col-hash">${idx+1}</div>
-                    <div class="col-name">${p.ign || 'Unknown'}</div>
+                    <div class="col-name">${esc(p.ign || 'Unknown')}</div>
                     <div class="col-kill">${p.kills || 0}</div>
                     <div class="col-win">৳${p.win || 0}</div>
                 </div>`;
