@@ -135,9 +135,9 @@ app.post('/withdraw', auth, async (req, res) => {
 
 
 // ---------- ম্যাচের সময় অটো চলার সিস্টেম ----------
-// demo_ দিয়ে শুরু বা recurring:true ম্যাচ নিজে নিজে পরের স্লটে সরে যায়।
-// জয়েন থাকলে পুরোনোটা Ongoing হয়ে যায় আর নতুন Upcoming কপি তৈরি হয়।
-// অন্য ম্যাচের সময় পার হলে শুধু Ongoing হয়ে যায়।
+// demo_ দিয়ে শুরু বা recurring:true ম্যাচ সবসময় এখন থেকে পরের ২০ মিনিটের স্লটে (যেমন ১০:০০, ১০:২০, ১০:৪০) সাজানো থাকে।
+// জয়েন থাকলে ম্যাচ সময়মতো Ongoing হয় আর তার জায়গায় নতুন Upcoming ম্যাচ তৈরি হয়।
+// অ্যাডমিনের হাতে বানানো ম্যাচ সময় পার হলে শুধু Ongoing হয়।
 const STEP = 20 * 60000;
 let lastTick = 0, ticking = false;
 function fmtTime(ts) {
@@ -153,28 +153,39 @@ async function tick() {
   try {
     const all = (await db.ref('matches').get()).val() || {};
     const t = Date.now();
-    const demoCount = {}; let maxNo = 0;
-    Object.entries(all).forEach(([k, m]) => {
-      maxNo = Math.max(maxNo, Number(m.match_no) || 0);
-      if (k.startsWith('demo_')) demoCount[m.categoryId] = (demoCount[m.categoryId] || 0) + 1;
-    });
+    let maxNo = 0;
+    Object.values(all).forEach(m => { maxNo = Math.max(maxNo, Number(m.match_no) || 0); });
     const up = {};
+    const cats = {}; // ক্যাটাগরি অনুযায়ী: busy = যাদের জয়েন আছে (সময় বদলাবে না), free = সময় সাজানো যাবে
     for (const [k, m] of Object.entries(all)) {
       if (String(m.status || '').toLowerCase() !== 'upcoming') continue;
-      const ts = Number(m.timestamp);
-      if (!ts || ts > t) continue;
+      const ts = Number(m.timestamp) || 0;
       const recurring = m.recurring === true || k.startsWith('demo_');
-      if (!recurring) { up[k + '/status'] = 'Ongoing'; continue; }
-      const period = Number(m.period) || STEP * (demoCount[m.categoryId] || 1);
-      const next = ts + Math.ceil((t + 2 * 60000 - ts) / period) * period;
+      if (!recurring) { if (ts && ts <= t) up[k + '/status'] = 'Ongoing'; continue; }
+      const c = cats[m.categoryId || 'x'] || (cats[m.categoryId || 'x'] = { busy: new Set(), future: [], expired: [], step: STEP });
+      c.step = (Number(m.interval) || 20) * 60000;
       if (Number(m.joined) > 0) {
-        up[k + '/status'] = 'Ongoing';
-        up[k + '/recurring'] = false;
-        const nk = db.ref('matches').push().key;
-        up[nk] = { ...m, joined: 0, timestamp: next, time: fmtTime(next), status: 'Upcoming', room_id: '', room_pass: '', recurring: true, period, match_no: ++maxNo };
-      } else {
-        up[k + '/timestamp'] = next; up[k + '/time'] = fmtTime(next);
-        up[k + '/period'] = period; up[k + '/room_id'] = ''; up[k + '/room_pass'] = '';
+        if (ts > t) c.busy.add(ts);
+        else { up[k + '/status'] = 'Ongoing'; up[k + '/recurring'] = false; c.expired.push({ clone: m }); }
+      } else if (ts > t) c.future.push({ key: k, m, ts });
+      else c.expired.push({ key: k, m });
+    }
+    for (const c of Object.values(cats)) {
+      c.future.sort((a, b) => a.ts - b.ts || (Number(a.m.match_no) || 0) - (Number(b.m.match_no) || 0));
+      c.expired.sort((a, b) => (Number((a.m || a.clone).match_no) || 0) - (Number((b.m || b.clone).match_no) || 0));
+      const pool = c.future.concat(c.expired);
+      let slot = Math.ceil((t + 2 * 60000) / c.step) * c.step;
+      for (const it of pool) {
+        while (c.busy.has(slot)) slot += c.step;
+        const m = it.m || it.clone;
+        if (it.clone) {
+          const nk = db.ref('matches').push().key;
+          up[nk] = { ...it.clone, joined: 0, timestamp: slot, time: fmtTime(slot), status: 'Upcoming', room_id: '', room_pass: '', recurring: true, match_no: ++maxNo };
+        } else if (Number(m.timestamp) !== slot) {
+          up[it.key + '/timestamp'] = slot; up[it.key + '/time'] = fmtTime(slot);
+          up[it.key + '/room_id'] = ''; up[it.key + '/room_pass'] = '';
+        }
+        slot += c.step;
       }
     }
     if (Object.keys(up).length) { await db.ref('matches').update(up); console.log('tick updated', Object.keys(up).length); }
