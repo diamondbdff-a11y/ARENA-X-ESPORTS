@@ -14,6 +14,7 @@ const firebaseConfig = {
 };
 
 const _app = initializeApp(firebaseConfig);
+const wrapInit = () => _app;
 const _db = getDatabase(_app);
 const _auth = getAuth(_app);
 const wrapDb = () => _db;
@@ -21,4 +22,4 @@ const wrapAuth = () => _auth;
 
 export const fallbackImg = (t) => 'data:image/svg+xml;utf8,' + encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" width="400" height="220"><rect width="400" height="220" fill="#37474f"/><text x="200" y="118" font-family="Arial" font-weight="900" font-size="28" fill="#fff" text-anchor="middle">${t||'IMAGE'}</text></svg>`);
 
-export { initializeApp, wrapDb as getDatabase, ref, set, onValue, push, update, get, remove, serverTimestamp, wrapAuth as getAuth, GoogleAuthProvider, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, onAuthStateChanged, updateProfile, updatePassword, reauthenticateWithCredential, EmailAuthProvider };
+export { wrapInit as initializeApp, wrapDb as getDatabase, ref, set, onValue, push, update, get, remove, serverTimestamp, wrapAuth as getAuth, GoogleAuthProvider, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, onAuthStateChanged, updateProfile, updatePassword, reauthenticateWithCredential, EmailAuthProvider };
