@@ -1532,10 +1532,10 @@
             <div class="auth-card-title">Sign In</div>
             
             <div class="auth-input-group">
-                 <input type="email" id="login-email" class="auth-input-field" placeholder="Email Address">
+                 <input type="email" id="login-email" class="auth-input-field" placeholder="Email Address" autocapitalize="none" autocorrect="off" spellcheck="false" autocomplete="username">
             </div>
             <div class="auth-input-group">
-                 <input type="password" id="login-pass" class="auth-input-field" placeholder="Password">
+                 <input type="password" id="login-pass" class="auth-input-field" placeholder="Password" autocapitalize="none" autocomplete="current-password">
                  <i class="fas fa-eye-slash auth-password-eye"></i>
             </div>
             
@@ -2251,7 +2251,7 @@
         onValue(ref(db, 'match_participants'), s => { allParticipants = s.val() || {}; calculateJoinedMatches(); });
     };
     function authMsg(e) {
-        const m = { 'auth/email-already-in-use':'এই ইমেইল আগেই রেজিস্টার করা আছে। লগইন করুন বা Forget Password দিন।', 'auth/weak-password':'পাসওয়ার্ড কমপক্ষে ৬ অক্ষরের দিন।', 'auth/invalid-email':'সঠিক ইমেইল দিন।', 'auth/invalid-credential':'ইমেইল বা পাসওয়ার্ড ভুল।', 'auth/user-not-found':'এই ইমেইলে কোনো একাউন্ট নেই।', 'auth/wrong-password':'পাসওয়ার্ড ভুল।', 'auth/network-request-failed':'ইন্টারনেট সংযোগ চেক করুন।', 'auth/too-many-requests':'অনেকবার চেষ্টা হয়েছে, কিছুক্ষণ পরে আবার চেষ্টা করুন।' };
+        const m = { 'auth/email-already-in-use':'এই ইমেইল আগেই রেজিস্টার করা আছে। লগইন করুন বা Forget Password দিন।', 'auth/weak-password':'পাসওয়ার্ড কমপক্ষে ৬ অক্ষরের দিন।', 'auth/invalid-email':'সঠিক ইমেইল দিন।', 'auth/invalid-credential':'ইমেইল বা পাসওয়ার্ড ভুল। আগে Google দিয়ে একাউন্ট খুললে Google বাটন চাপুন, না হলে Forget Password দিন।', 'auth/user-not-found':'এই ইমেইলে কোনো একাউন্ট নেই।', 'auth/wrong-password':'পাসওয়ার্ড ভুল।', 'auth/network-request-failed':'ইন্টারনেট সংযোগ চেক করুন।', 'auth/too-many-requests':'অনেকবার চেষ্টা হয়েছে, কিছুক্ষণ পরে আবার চেষ্টা করুন।' };
         return m[e.code] || e.message;
     }
     window.googleLogin = async () => {
@@ -2537,7 +2537,7 @@
                 btnJoinHTML = `<button class="btn-join-main disabled">JOINED</button>`;
             } else {
                 // Pass m.dbKey as the ID for joining
-                btnJoinHTML = `<button class="btn-join-main" onclick="event.stopPropagation(); window.prepJoin('${m.dbKey}', '${m.type}', ${m.entry}, '${m.dbKey}', '${m.title}')">Join</button>`;
+                btnJoinHTML = `<button class="btn-join-main" onclick="event.stopPropagation(); window.prepJoin('${m.dbKey}', '${m.type}', ${m.entry}, '${m.dbKey}', '${m.title}', '${m.total_prize||0}', '${m.time||''}')">Join</button>`;
             }
         } else if (type === 'joined') {
              btnJoinHTML = `<button class="btn-join-main disabled">JOINED</button>`;
@@ -2789,7 +2789,7 @@
          }
     }
 
-    function prepJoin(id, type, fee, key, title) {
+    function prepJoin(id, type, fee, key, title, prize, mtime) {
          if(!currentUser) return;
          
          // Use the passed ID (which is now dbKey) to check
@@ -2802,8 +2802,8 @@
          
          // Setup Full Page Join UI
          document.getElementById('join-page-title').innerText = title || "Match Joining";
-         document.getElementById('join-page-meta').innerText = new Date().toLocaleDateString(); 
-         document.getElementById('join-page-win').innerText = "???"; 
+         document.getElementById('join-page-meta').innerText = mtime || new Date().toLocaleDateString(); 
+         document.getElementById('join-page-win').innerText = prize || "0"; 
          document.getElementById('join-page-fee').innerText = fee;
          document.getElementById('join-page-type').innerText = type;
 
@@ -2814,7 +2814,7 @@
          const ic = document.getElementById('join-inputs-container');
          ic.innerHTML = "";
          for(let i=1; i<=slots; i++) {
-             ic.innerHTML += `<input type="text" class="join-input p-name" placeholder="Player ${i} Name (Game ID)">`;
+             ic.innerHTML += `<input type="text" class="join-input p-name" placeholder="Player ${i} গেমের নাম (In-game Name)" autocomplete="off">`;
          }
          
          // Store Key for Confirm (redundant but safe)
@@ -3110,8 +3110,8 @@
     }
 
     function emailLogin() {
-         const e = document.getElementById('login-email').value.trim();
-         const p = document.getElementById('login-pass').value;
+         const e = document.getElementById('login-email').value.trim().toLowerCase();
+         const p = document.getElementById('login-pass').value.trim();
          if(!e || !p) return Swal.fire('Error', "Please fill all fields", 'error');
          toggleLoader(true);
          signInWithEmailAndPassword(auth, e, p)
@@ -3121,9 +3121,9 @@
     
     function emailRegister() {
          const n = document.getElementById('reg-username').value;
-         const e = document.getElementById('reg-email').value.trim();
+         const e = document.getElementById('reg-email').value.trim().toLowerCase();
          const ph = document.getElementById('reg-phone').value;
-         const p = document.getElementById('reg-pass').value;
+         const p = document.getElementById('reg-pass').value.trim();
          // reg-promo can be used if needed
          if(!n || !e || !ph || !p) return Swal.fire('Error', "Please fill all fields", 'error');
          if(!/^01\d{9}$/.test(ph.trim())) return Swal.fire('Error', 'সঠিক ১১ ডিজিটের মোবাইল নম্বর দিন (01XXXXXXXXX)', 'error');
