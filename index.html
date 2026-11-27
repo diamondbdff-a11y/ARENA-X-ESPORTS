@@ -1488,6 +1488,15 @@
     .help-card { display:flex; align-items:center; justify-content:space-between; background:#fff; border:1.5px solid #ffe0b2; border-radius:20px; padding:16px; margin:12px 0; }
     .help-btn { background:linear-gradient(90deg,#e65100,#ff9800); color:#fff; border:0; border-radius:14px; padding:12px 18px; font-weight:800; }
     .live-btn { display:block; width:100%; background:#e53935; color:#fff; border:0; border-radius:14px; padding:16px; font-weight:800; font-size:16px; margin-bottom:14px; }
+
+    /* ===== উপরের স্থির হেডার ===== */
+    .top-header { position:fixed; top:0; left:0; right:0; height:60px; background:#fff; display:flex; align-items:center; gap:10px; padding:0 14px; box-shadow:0 1px 6px rgba(0,0,0,.1); z-index:900; }
+    .top-header img { width:42px; height:42px; border-radius:10px; object-fit:cover; }
+    .th-name { flex:1; min-width:0; font-size:18px; font-weight:900; color:#111; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+    .th-bell { background:none; border:0; font-size:22px; color:#111; padding:8px; cursor:pointer; }
+    .th-bal { display:flex; align-items:center; gap:6px; background:#fff; border:1.5px solid #e53935; color:#e53935; border-radius:22px; padding:8px 14px; font-weight:900; font-size:15px; cursor:pointer; white-space:nowrap; }
+    body.sub-page .top-header { display:none; }
+    body:not(.sub-page) #main-content { padding-top:60px; }
 </style>
 </head>
 
@@ -1618,6 +1627,13 @@
 </div>
 
 <main id="main-content" style="display:none;">
+    <header class="top-header">
+        <img id="th-logo" alt="">
+        <div class="th-name" id="th-name"></div>
+        <button type="button" class="th-bell" aria-label="Notifications" onclick="window.navigateSub('notifications')"><i class="fas fa-bell"></i></button>
+        <button type="button" class="th-bal" onclick="window.navigateSub('wallet')"><i class="fas fa-wallet"></i> ৳ <span id="th-balance">0</span></button>
+    </header>
+
     
     <!-- SHOP PAGE -->
     <section id="tab-shop-view" class="app-section">
@@ -3356,6 +3372,80 @@
             });
         });
     }
+</script>
+<script>
+/* ===== হেডারের নাম, লোগো, ব্যালেন্স ===== */
+(function () {
+    const $ = id => document.getElementById(id);
+    function sync() {
+        $('th-name').textContent = $('splash-app-name').textContent;
+        $('th-logo').src = $('splash-logo').src;
+        $('th-balance').textContent = $('wallet-balance-display').textContent.trim() || '0';
+    }
+    const o = new MutationObserver(sync);
+    ['splash-app-name', 'wallet-balance-display'].forEach(id => o.observe($(id), { childList: true, characterData: true, subtree: true }));
+    o.observe($('splash-logo'), { attributes: true, attributeFilter: ['src'] });
+    sync();
+})();
+
+/* ===== ব্যাক বাটন: এক ধাপ করে পিছনে যাবে ===== */
+(function () {
+    const HOME = 'tab-home-view';
+    const TABS = ['tab-shop-view', HOME, 'tab-mymatches-view', 'tab-result-view', 'tab-profile-view'];
+    const main = document.getElementById('main-content');
+    let stack = [HOME];
+    let skip = 0;
+    history.replaceState({ i: 0 }, '');
+
+    const openModal = () => document.querySelector('.modal.active');
+    function current() {
+        if (main.style.display === 'none') return null;
+        const m = openModal();
+        if (m) return m.id;
+        const s = document.querySelector('.app-section.active');
+        return s ? s.id : null;
+    }
+    function track() {
+        const key = current();
+        const top = stack.length - 1;
+        if (!key || key === stack[top]) return;
+        const at = stack.lastIndexOf(key);
+        if (at !== -1) {
+            stack.length = at + 1;
+            skip++;
+            history.go(at - top);
+        } else {
+            stack.push(key);
+            history.pushState({ i: stack.length - 1 }, '');
+        }
+    }
+    function show(id) {
+        document.querySelectorAll('.app-section').forEach(e => e.classList.toggle('active', e.id === id));
+        const isTab = TABS.includes(id);
+        document.body.classList.toggle('sub-page', !isTab);
+        document.querySelector('.tab-bar').classList.toggle('hidden', !isTab);
+        if (isTab) {
+            const nav = 'nav-' + id.replace('tab-', '').replace('-view', '');
+            document.querySelectorAll('.tab-item').forEach(e => e.classList.toggle('active', e.id === nav));
+        }
+        window.scrollTo(0, 0);
+    }
+    window.addEventListener('popstate', e => {
+        if (skip > 0) { skip--; return; }
+        if (main.style.display === 'none') return;
+        const i = (e.state && e.state.i) || 0;
+        if (i >= stack.length) return;
+        stack.length = i + 1;
+        document.querySelectorAll('.modal.active').forEach(m => m.classList.remove('active'));
+        if (window.Swal && Swal.isVisible()) Swal.close();
+        let k = stack.length - 1;
+        while (k > 0 && !document.getElementById(stack[k]).classList.contains('app-section')) k--;
+        show(stack[k]);
+    });
+    const o = new MutationObserver(track);
+    document.querySelectorAll('.app-section, .modal').forEach(e => o.observe(e, { attributes: true, attributeFilter: ['class'] }));
+    o.observe(main, { attributes: true, attributeFilter: ['style'] });
+})();
 </script>
 </body>
 </html>
