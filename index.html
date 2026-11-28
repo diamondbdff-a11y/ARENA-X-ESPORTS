@@ -368,6 +368,12 @@
         cursor: pointer;
     }
 
+
+    /* ===== স্মুথ পেজ ফেড + হালকা লোডার ===== */
+    @keyframes pageFade { from { opacity:0; transform:translateY(10px); } to { opacity:1; transform:none; } }
+    .app-section.active { animation: pageFade .28s ease-out; }
+    #global-loader { background: rgba(0,0,0,0.22) !important; }
+    #global-loader.active { animation: pageFade .15s ease-out; }
     /* --- LAYOUT & SECTIONS --- */
     .app-section {
         display: none;
@@ -2567,6 +2573,7 @@
             }
         });
 
+        let _mtTimer = null;
         onValue(ref(db, 'matches'), s => {
             rawMatches = [];
             const d = s.val();
@@ -2574,16 +2581,18 @@
                 // Store dbKey explicitly
                 rawMatches.push({dbKey:k, ...v});
             });
-            updateCounts();
-            
-            // If matches view is active, refresh to show correct status
-            if(document.getElementById('matches-view').classList.contains('active')) {
-                filterMatchTab(currentMatchFilter);
-            }
-            if(document.getElementById('tab-mymatches-view').classList.contains('active')) {
-                loadMyMatches();
-            }
-            if(document.getElementById('tab-result-view').classList.contains('active')) loadResults();
+            // একসাথে অনেক আপডেট এলে (ম্যাচ তৈরি/সময় বদল) স্ক্রিন বারবার না এঁকে একবারই আঁকে
+            clearTimeout(_mtTimer);
+            _mtTimer = setTimeout(() => {
+                updateCounts();
+                if(document.getElementById('matches-view').classList.contains('active')) {
+                    filterMatchTab(currentMatchFilter);
+                }
+                if(document.getElementById('tab-mymatches-view').classList.contains('active')) {
+                    loadMyMatches();
+                }
+                if(document.getElementById('tab-result-view').classList.contains('active')) loadResults();
+            }, 250);
         });
 
         // match_participants লিসেনার এখন লগইনের পর চালু হয়
@@ -2705,7 +2714,7 @@
             if(t === 'mymatches') loadMyMatches();
             if(t === 'result') loadResults();
             toggleLoader(false);
-        }, 60);
+        }, 350);
     }
 
     function navigateSub(t) {
@@ -2736,7 +2745,7 @@
                  document.getElementById('ep-email').value = currentUser.email || '';
             }
             toggleLoader(false);
-        }, 60);
+        }, 350);
     }
 
     function selectWithdrawMethod(el, method) {
@@ -2945,7 +2954,7 @@
             }
             
             toggleLoader(false);
-        }, 60);
+        }, 350);
     }
     
     function openResultDetails(key) {
@@ -3027,7 +3036,7 @@
             </div>`;
             
             toggleLoader(false);
-        }, 60);
+        }, 350);
     }
 
     function openPrizePool(key) {
