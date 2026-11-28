@@ -398,7 +398,7 @@ async function autoGenerate() {
   const Y = d.getUTCFullYear(), M = d.getUTCMonth() + 1, D = d.getUTCDate();
   const today = `${Y}-${pad2(M)}-${pad2(D)}`;
   if (st.schedule_last === today) return;
-  const cfg = {}; Object.keys(SCH_DEFAULT).forEach(id => { cfg[id] = Object.assign({}, SCH_DEFAULT[id], st.schedule[id] || {}); });
+  const cfg = {}; Object.keys(SCH_DEFAULT).forEach(id => { cfg[id] = Object.assign({}, SCH_DEFAULT[id], st.schedule[id] || {}, { blocks: SCH_DEFAULT[id].blocks, per: SCH_DEFAULT[id].per, gap: SCH_DEFAULT[id].gap }); }); // সময় সবসময় কোডের ডিফল্ট থেকে (পুরনো সেভ করা সময় ধরবে না)
   const existing = (await db.ref('matches').get()).val() || {};
   let n = 164900; Object.values(existing).forEach(x => { const v = Number(x && x.match_no); if (v > n) n = v; });
   const add = {};
