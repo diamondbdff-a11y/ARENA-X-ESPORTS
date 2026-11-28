@@ -375,11 +375,11 @@ function fmtTime(ts) {
 
 // ---------- রাত ১২টার পর আজকের সব ম্যাচ অটো তৈরি (অ্যাডমিন > Auto Schedule এর সেটিং অনুযায়ী) ----------
 const SCH_DEFAULT = {
-  lw2: { on: true, title: 'Lone Wolf 2 VS 2 | [ 1,3 Vs 2,4 ]', no_suffix: true,  blocks: '08:00,14:00,20:00', per: 3, gap: 20, types: 'Solo',           map: 'Bermuda',   fee: 50, prize: 150, kill: 0, slots: 4 },
-  br:  { on: true, title: '{type} Time',                      no_suffix: false, blocks: '09:00,15:00,21:00', per: 3, gap: 20, types: 'Squad,Solo,Duo', map: 'Bermuda',   fee: 10, prize: 405, kill: 5, slots: 48 },
-  cs2: { on: true, title: 'CS 2 VS 2',                        no_suffix: false, blocks: '10:00,16:00,22:00', per: 3, gap: 20, types: 'Solo',           map: 'Bermuda',   fee: 50, prize: 150, kill: 0, slots: 4 },
-  cs:  { on: true, title: 'CS 4 VS 4',                        no_suffix: false, blocks: '11:00,17:00,23:00', per: 3, gap: 20, types: 'Solo',           map: 'Bermuda',   fee: 50, prize: 320, kill: 0, slots: 8 },
-  lw1: { on: true, title: 'Lone Wolf 1 VS 1',                 no_suffix: true,  blocks: '13:00,19:00',       per: 3, gap: 20, types: 'Solo',           map: 'Lone Wolf', fee: 20, prize: 30,  kill: 0, slots: 2 }
+  lw2: { on: true, title: 'Lone Wolf 2 VS 2 | [ 1,3 Vs 2,4 ]', no_suffix: true,  blocks:'08:00', per:10, gap:100, types: 'Solo',           map: 'Bermuda',   fee: 50, prize: 150, kill: 0, slots: 4 },
+  br:  { on: true, title: '{type} Time',                      no_suffix: false, blocks:'08:20', per:10, gap:100, types: 'Squad,Solo,Duo', map: 'Bermuda',   fee: 10, prize: 405, kill: 5, slots: 48 },
+  cs2: { on: true, title: 'CS 2 VS 2',                        no_suffix: false, blocks:'08:40', per:10, gap:100, types: 'Solo',           map: 'Bermuda',   fee: 50, prize: 150, kill: 0, slots: 4 },
+  cs:  { on: true, title: 'CS 4 VS 4',                        no_suffix: false, blocks:'09:00', per:10, gap:100, types: 'Solo',           map: 'Bermuda',   fee: 50, prize: 320, kill: 0, slots: 8 },
+  lw1: { on: true, title: 'Lone Wolf 1 VS 1',                 no_suffix: true,  blocks:'09:20',       per:10, gap:100, types: 'Solo',           map: 'Lone Wolf', fee: 20, prize: 30,  kill: 0, slots: 2 }
 };
 const pad2 = x => String(x).padStart(2, '0');
 function schMinutes(c) {
