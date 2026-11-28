@@ -84,7 +84,7 @@
         justify-content: center;
         align-items: center;
         color: white;
-        transition: opacity 0.45s ease-out, transform 0.45s ease-out;
+        transition: opacity 0.33s ease-out, transform 0.33s ease-out;
         overflow: hidden;
     }
 
@@ -1552,6 +1552,8 @@
     .nf-text { font-size:14px; color:#555; margin-top:3px; line-height:1.45; word-break:break-word; }
     .nf-cat { font-size:12px; font-weight:800; letter-spacing:.4px; margin-top:8px; text-transform:uppercase; }
     .nf-empty { text-align:center; color:#888; padding:50px 20px; font-size:15px; }
+    .th-refresh { background:none; border:0; font-size:18px; color:#111; padding:8px; margin-right:2px; cursor:pointer; }
+    .th-refresh.spin i { animation:spin .7s linear infinite; }
     .th-bell { position:relative; background:none; border:0; font-size:20px; color:#111; padding:8px; margin-right:18px; cursor:pointer; }
     .th-bal { display:flex; align-items:center; gap:5px; background:#fff; border:1.5px solid #e53935; color:#e53935; border-radius:18px; padding:5px 10px; font-weight:900; font-size:13px; cursor:pointer; white-space:nowrap; }
     .btn-refresh { flex:0 0 42px; width:42px; border:1px solid #1565C0; color:#1565C0; background:#fff; border-radius:4px; font-size:15px; cursor:pointer; display:flex; align-items:center; justify-content:center; }
@@ -1698,6 +1700,7 @@
     <header class="top-header">
         <img id="th-logo" alt="">
         <div class="th-name" id="th-name"></div>
+        <button type="button" class="th-refresh" id="th-refresh" aria-label="Refresh" onclick="window.refreshApp(this)"><i class="fas fa-sync-alt"></i></button>
         <button type="button" class="th-bell" aria-label="Notifications" onclick="window.navigateSub('notifications')"><i class="fas fa-bell"></i><span class="th-badge" id="th-badge" style="display:none"></span></button>
         <button type="button" class="th-bal" onclick="window.navigateSub('wallet')"><i class="fas fa-wallet"></i> ৳ <span id="th-balance">0</span></button>
     </header>
@@ -2293,11 +2296,41 @@
 
 <script>
 window.__splashT0 = Date.now();
+// ব্যানার ও ক্যাটাগরি: Firebase লাইব্রেরি লোডের অপেক্ষা না করে সরাসরি আগেভাগে আনা
+window.__pre = {};
+(function(){
+  var B='https://arena-x-esports-b4b37-default-rtdb.europe-west1.firebasedatabase.app';
+  function g(p){ try { return fetch(B+'/'+p+'.json').then(function(r){return r.ok?r.json():null}).catch(function(){return null}); } catch(e){ return Promise.resolve(null); } }
+  window.__pre.cats = g('categories');
+  window.__pre.banners = g('app_settings/banners');
+  window.__lastCats = null;
+  window.__drawCats = function(d){
+    var c=document.getElementById('dynamic-category-list'); if(!c||!d) return;
+    window.__lastCats=d;
+    c.innerHTML=Object.keys(d).map(function(k){var v=d[k];return '<div class="cat-card-new" onclick="window.openCategory(\''+k+'\')"><img src="'+v.img+'" class="cat-card-img"><div class="cat-card-info"><div class="cat-card-title">'+v.name+'</div><div class="cat-card-count" id="count-'+k+'">0 matches found</div></div></div>';}).join('');
+  };
+  window.__drawBanners = function(bs){
+    var w=document.getElementById('banner-slider-wrapper'), dots=document.getElementById('slider-dots');
+    if(!w||!dots||!bs||!bs.length) return;
+    w.innerHTML=bs.map(function(b){return '<div class="slide"'+(b.link?' onclick="window.open(\''+b.link+'\', \'_blank\')"':'')+'><img src="'+b.img+'"></div>';}).join('');
+    dots.innerHTML=bs.map(function(b,i){return '<div class="dot'+(i===0?' active':'')+'"></div>';}).join('');
+  };
+  // আগের বার দেখা ডাটা সাথে সাথে
+  try { var cc=JSON.parse(localStorage.getItem('cache_cats')||'null'); if(cc) window.__drawCats(cc); } catch(e) {}
+  try { var cb=JSON.parse(localStorage.getItem('cache_banners')||'null'); if(cb) window.__drawBanners(cb); } catch(e) {}
+  // সরাসরি আনা নতুন ডাটা
+  window.__pre.cats.then(function(d){ if(d && !window.__catsLive){ window.__drawCats(d); try{localStorage.setItem('cache_cats',JSON.stringify(d));}catch(e){} } });
+  window.__pre.banners.then(function(d){ if(d && !window.__bannersLive){ var bs=Object.keys(d).map(function(k){return d[k];}); window.__drawBanners(bs); try{localStorage.setItem('cache_banners',JSON.stringify(bs));}catch(e){} } });
+})();
+window.refreshApp = function(b){
+  try { if(b) b.classList.add('spin'); } catch(e) {}
+  setTimeout(function(){ location.reload(); }, 250);
+};
 window.hideSplash = function(){
   var sp=document.getElementById('app-splash'); if(!sp || sp.dataset.gone) return;
-  var wait=Math.max(0, 700-(Date.now()-window.__splashT0));
+  var wait=Math.max(0, 350-(Date.now()-window.__splashT0));
   sp.dataset.gone='1';
-  setTimeout(function(){ sp.style.opacity='0'; sp.style.transform='scale(1.04)'; sp.style.pointerEvents='none'; setTimeout(function(){sp.style.display='none'},470); }, wait);
+  setTimeout(function(){ sp.style.opacity='0'; sp.style.transform='scale(1.04)'; sp.style.pointerEvents='none'; setTimeout(function(){sp.style.display='none'},340); }, wait);
 };
 setTimeout(function(){
   window.hideSplash();
@@ -2569,35 +2602,25 @@ setTimeout(function(){
     }
 
     function renderCats(d) {
+        window.__drawCats(d);
         activeCategories = d;
-        const c = document.getElementById('dynamic-category-list');
-        c.innerHTML = Object.entries(d).map(([k,v]) => `
-                    <div class="cat-card-new" onclick="window.openCategory('${k}')">
-                         <img src="${v.img}" class="cat-card-img">
-                         <div class="cat-card-info">
-                             <div class="cat-card-title">${v.name}</div>
-                             <div class="cat-card-count" id="count-${k}">0 matches found</div>
-                         </div>
-                    </div>`).join('');
         updateCounts();
     }
     function renderBanners(banners) {
-        const w = document.getElementById('banner-slider-wrapper');
-        const dots = document.getElementById('slider-dots');
         if(!banners || banners.length === 0) return;
-        w.innerHTML = banners.map(b => `<div class="slide" ${b.link ? `onclick="window.open('${b.link}', '_blank')"` : ''}><img src="${b.img}"></div>`).join('');
-        dots.innerHTML = banners.map((b, i) => `<div class="dot ${i===0?'active':''}"></div>`).join('');
+        window.__drawBanners(banners);
         slideIndex = 0;
         initSlider();
     }
 
     function initData() {
-        // আগের বার দেখা ক্যাটাগরি আর ব্যানার সাথে সাথে দেখাও, নতুন ডাটা এলে বদলে যাবে
-        try { const cc = JSON.parse(localStorage.getItem('cache_cats') || 'null'); if(cc) renderCats(cc); } catch(e) {}
-        try { const cb = JSON.parse(localStorage.getItem('cache_banners') || 'null'); if(cb) renderBanners(cb); } catch(e) {}
+        // পেজ আগেই যা এঁকে রেখেছে (আগের কপি বা সরাসরি আনা ডাটা), সেটা এই অংশের সাথে জুড়ে নেওয়া
+        if(window.__lastCats) { activeCategories = window.__lastCats; updateCounts(); }
+        initSlider();
         onValue(ref(db, 'categories'), s => {
             const d = s.val();
             if(d) {
+                window.__catsLive = true;
                 renderCats(d);
                 try { localStorage.setItem('cache_cats', JSON.stringify(d)); } catch(e) {}
             }
@@ -2655,6 +2678,7 @@ setTimeout(function(){
 
                 if(d.banners) {
                     const banners = Object.values(d.banners);
+                    window.__bannersLive = true;
                     renderBanners(banners);
                     try { localStorage.setItem('cache_banners', JSON.stringify(banners)); } catch(e) {}
                 } else {
