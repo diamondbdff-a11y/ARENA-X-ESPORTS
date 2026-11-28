@@ -365,13 +365,6 @@
                 <div class="form-group"><label class="form-label">CS 2 Vs 2 Rules</label><textarea id="set-rules-cs2" class="form-input" rows="8" placeholder="CS 2 Vs 2-এর নিয়ম লিখুন"></textarea></div>
                 <div class="form-group"><label class="form-label">Lone Wolf 2V2 Rules</label><textarea id="set-rules-lw2" class="form-input" rows="8" placeholder="Lone Wolf 2V2-এর নিয়ম লিখুন"></textarea></div>
                 <div class="form-group"><label class="form-label">Lone Wolf 1 Vs 1 Rules</label><textarea id="set-rules-lw1" class="form-input" rows="8" placeholder="Lone Wolf 1 Vs 1-এর নিয়ম লিখুন"></textarea></div>
-                <h4 style="margin:22px 0 8px; color:var(--warning); font-weight:800;">Match Card Notice (প্রতিটি ম্যাচ কার্ডে দেখাবে)</h4>
-                <p style="font-size:12px; color:var(--text-muted); margin-bottom:14px;">এখানে বদলালে ঐ ক্যাটাগরির সব ম্যাচ কার্ডে নোটিশ বদলে যাবে। ফাঁকা রাখলে নোটিশ দেখাবে না।</p>
-                <div class="form-group"><label class="form-label">BR Match Notice</label><textarea id="set-notice-br" class="form-input" rows="3"></textarea></div>
-                <div class="form-group"><label class="form-label">Clash Squad / CS Notice</label><textarea id="set-notice-cs" class="form-input" rows="3"></textarea></div>
-                <div class="form-group"><label class="form-label">CS 2 Vs 2 Notice</label><textarea id="set-notice-cs2" class="form-input" rows="3"></textarea></div>
-                <div class="form-group"><label class="form-label">Lone Wolf 2V2 Notice</label><textarea id="set-notice-lw2" class="form-input" rows="3"></textarea></div>
-                <div class="form-group"><label class="form-label">Lone Wolf 1 Vs 1 Notice</label><textarea id="set-notice-lw1" class="form-input" rows="3"></textarea></div>
             </div>
             <div class="form-group">
                 <label class="form-label">Enable Popup</label>
@@ -420,7 +413,7 @@
         <div class="back-nav" onclick="navTo('dashboard')"><span class="back-btn"><i class="fas fa-chevron-left"></i> Back to Dashboard</span></div>
         <div class="flat-card">
             <h4 style="margin-bottom:8px; color:#00BCD4; font-weight:800;">অটো ম্যাচ শিডিউল</h4>
-            <p style="font-size:12px; color:var(--text-muted); line-height:1.6;">প্রতিটা মোডের প্রথম ম্যাচের সময় আর গ্যাপ দিন। ঐ সময় থেকে রাত ১২টা পর্যন্ত সব ম্যাচ একবারে তৈরি হবে। রাত ১২টার পর নতুন দিনের ম্যাচ বসলে ইউজার অ্যাপে প্রথম ম্যাচের কাউন্টডাউন দেখাবে। কোনো দুটো মোড একই মিনিটে পড়লে নিচে লাল সতর্কতা আসবে।</p>
+            <p style="font-size:12px; color:var(--text-muted); line-height:1.6;">প্রতিটা মোডের জন্য ব্লকের শুরুর সময় দিন (যেমন 08:00,14:00,20:00)। প্রতি ব্লকে ২০ মিনিট গ্যাপে ম্যাচ তৈরি হবে (৮:০০, ৮:২০, ৮:৪০)। মোডগুলো ঘণ্টায় ঘণ্টায় পালা করে ঘোরে, তাই একই সময়ে দুই মোডের ম্যাচ পড়ে না। রাত ১২টার পর নতুন দিনের ম্যাচ বসলে ইউজার অ্যাপে প্রথম ম্যাচের কাউন্টডাউন দেখাবে। কোনো দুটো মোড একই মিনিটে পড়লে নিচে লাল সতর্কতা আসবে।</p>
             <div id="sch-warn" style="margin-top:10px; font-size:12px; font-weight:700;"></div>
         </div>
         <div id="sch-cards"></div>
@@ -1168,16 +1161,15 @@ window.pickImg = function(id){
 };
 
 
-        const DEFAULT_MATCH_NOTICES = {"br": "📢 বিআর ম্যাচ: গাড়ি/মনস্টার ট্রাক, স্নাইপার ও ডাবল ভেক্টর নিষেধ। প্রতিজন সর্বোচ্চ ৬ কিল। মিনিমাম লেভেল ৫০। রুম ডিটেইলস ম্যাচের ৮–৫ মিনিট আগে দেখুন, ১–২ মিনিট আগে জয়েন করুন।", "cs": "📢 ক্লাসিক স্কোয়াড: ৯৫০০ কয়েন, ৯ রাউন্ড। ক্যারেক্টার স্কিল, লিমিটেড অ্যামো, গান অ্যাট্রিবিউটস, এয়ারড্রপ ও লোডআউট বন্ধ। বোম/ফ্ল্যাশ, ডাবল ভেক্টর, চার্জ বাস্টার, M590, মিনি টারেট ও স্নাইপার নিষেধ। রুম ডিটেইলস ম্যাচের ৮–৫ মিনিট আগে দেখুন, ১–২ মিনিট আগে জয়েন করুন।", "cs2": "📢 CS 2 Vs 2: ৯৫০০ কয়েন, ৯ রাউন্ড। লোডআউট চালু; ক্যারেক্টার স্কিল, লিমিটেড অ্যামো, গান অ্যাট্রিবিউটস ও এয়ারড্রপ নিষেধ। বোম/ফ্ল্যাশ, ডাবল ভেক্টর, চার্জ বাস্টার, M590, মিনি টারেট ও স্নাইপার নিষেধ। টিম ১,৩ vs ২,৪। রুম ডিটেইলস ম্যাচের ৮–৫ মিনিট আগে দেখুন, ১–২ মিনিট আগে জয়েন করুন।", "lw2": "📢 লোন উলফ 2V2: নরমাল, ৯ রাউন্ড। অল গান, লিমিটেড অ্যামো এবং বোম ও ফ্ল্যাশ চালু; গান অ্যাট্রিবিউটস ও ক্যারেক্টার স্কিল নিষেধ। টিম ১,৩ vs ২,৪। রুম ডিটেইলস ম্যাচের ৮–৫ মিনিট আগে দেখুন, ১–২ মিনিট আগে জয়েন করুন।", "lw1": "📢 লোন উলফ 1 Vs 1 (Lost To Win): যে আগে ৫ রাউন্ড হারবে সে উইন পাবে। প্লেয়ার ব্যাক করলে ৫০ টাকা জরিমানা, কোনো উইন বা রিফান্ড নেই।"};
 
         // ---------- AUTO SCHEDULE ----------
         // প্রতিটা মোডের মিনিট আলাদা (৪ মিনিট করে ফারাক) যাতে ২০ মিনিট গ্যাপেও কোনো দুটো মোড একই মিনিটে না পড়ে
         const SCH_DEFAULT = {
-            lw2: { name:'Lone Wolf 2v2',   on:true, title:'Lone Wolf 2 VS 2 | [ 1,3 Vs 2,4 ]', no_suffix:true,  start:'08:00', gap:20, types:'Solo',            map:'Bermuda', fee:50, prize:150, kill:0, slots:4 },
-            br:  { name:'BR Match',        on:true, title:'{type} Time',                      no_suffix:false, start:'09:04', gap:20, types:'Squad,Solo,Duo', map:'Bermuda', fee:10, prize:405, kill:5, slots:48 },
-            cs2: { name:'CS 2 Vs 2',       on:true, title:'CS 2 VS 2',                        no_suffix:false, start:'10:08', gap:20, types:'Solo',            map:'Bermuda', fee:50, prize:150, kill:0, slots:4 },
-            cs:  { name:'Clash Squad (CS 4v4)', on:true, title:'CS 4 VS 4',                   no_suffix:false, start:'11:12', gap:20, types:'Solo',            map:'Bermuda', fee:50, prize:320, kill:0, slots:8 },
-            lw1: { name:'Lone Wolf 1v1',   on:true, title:'Lone Wolf 1 VS 1',                 no_suffix:true,  start:'13:16', gap:20, types:'Solo',            map:'Lone Wolf', fee:20, prize:30, kill:0, slots:2 }
+            lw2: { name:'Lone Wolf 2v2',        on:true, title:'Lone Wolf 2 VS 2 | [ 1,3 Vs 2,4 ]', no_suffix:true,  blocks:'08:00,14:00,20:00', per:3, gap:20, types:'Solo',            map:'Bermuda',   fee:50, prize:150, kill:0, slots:4 },
+            br:  { name:'BR Match',            on:true, title:'{type} Time',                      no_suffix:false, blocks:'09:00,15:00,21:00', per:3, gap:20, types:'Squad,Solo,Duo', map:'Bermuda',   fee:10, prize:405, kill:5, slots:48 },
+            cs2: { name:'CS 2 Vs 2',           on:true, title:'CS 2 VS 2',                        no_suffix:false, blocks:'10:00,16:00,22:00', per:3, gap:20, types:'Solo',            map:'Bermuda',   fee:50, prize:150, kill:0, slots:4 },
+            cs:  { name:'Clash Squad (CS 4v4)',on:true, title:'CS 4 VS 4',                        no_suffix:false, blocks:'11:00,17:00,23:00', per:3, gap:20, types:'Solo',            map:'Bermuda',   fee:50, prize:320, kill:0, slots:8 },
+            lw1: { name:'Lone Wolf 1v1',       on:true, title:'Lone Wolf 1 VS 1',                 no_suffix:true,  blocks:'13:00,19:00',       per:3, gap:20, types:'Solo',            map:'Lone Wolf', fee:20, prize:30,  kill:0, slots:2 }
         };
         const SCH_FIELDS = ['on','title','no_suffix','start','gap','types','map','fee','prize','kill','slots'];
         let schCfg = JSON.parse(JSON.stringify(SCH_DEFAULT));
@@ -1190,9 +1182,10 @@ window.pickImg = function(id){
                     <h4 style="margin-bottom:12px; color:var(--primary); font-weight:800;">${c.name} <span style="font-size:10px;color:var(--text-muted)">(ID: ${id})</span></h4>
                     <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px;">
                         <div><label class="form-label">চালু?</label><select id="sch-${id}-on" class="form-input" onchange="schCheck()"><option value="true" ${c.on?'selected':''}>Yes</option><option value="false" ${!c.on?'selected':''}>No</option></select></div>
-                        <div><label class="form-label">প্রথম ম্যাচ</label><input type="time" id="sch-${id}-start" class="form-input" value="${c.start}" onchange="schCheck()"></div>
+                        <div style="grid-column:1/3"><label class="form-label">ব্লক শুরুর সময় (কমা দিয়ে, ২৪ ঘণ্টা)</label><input type="text" id="sch-${id}-blocks" class="form-input" value="${c.blocks}" onchange="schCheck()"></div>
                         <div><label class="form-label">গ্যাপ (মিনিট)</label><input type="number" id="sch-${id}-gap" class="form-input" value="${c.gap}" onchange="schCheck()"></div>
                         <div><label class="form-label">স্লট</label><input type="number" id="sch-${id}-slots" class="form-input" value="${c.slots}"></div>
+                        <div><label class="form-label">প্রতি ব্লকে ম্যাচ</label><input type="number" id="sch-${id}-per" class="form-input" value="${c.per}" onchange="schCheck()"></div>
                         <div><label class="form-label">Entry Fee</label><input type="number" id="sch-${id}-fee" class="form-input" value="${c.fee}"></div>
                         <div><label class="form-label">Win Prize</label><input type="number" id="sch-${id}-prize" class="form-input" value="${c.prize}"></div>
                         <div><label class="form-label">Per Kill</label><input type="number" id="sch-${id}-kill" class="form-input" value="${c.kill}"></div>
@@ -1212,7 +1205,7 @@ window.pickImg = function(id){
                 if(!g('on')) { out[id] = schCfg[id]; return; }
                 out[id] = {
                     name: schCfg[id].name, on: g('on').value === 'true', title: g('title').value.trim(),
-                    no_suffix: g('no_suffix').value === 'true', start: g('start').value || '08:00',
+                    no_suffix: g('no_suffix').value === 'true', blocks: g('blocks').value.trim() || '08:00', per: Math.max(1, num(g('per').value) || 3),
                     gap: Math.max(1, num(g('gap').value) || 20), types: g('types').value.trim() || 'Solo',
                     map: g('map').value.trim(), fee: num(g('fee').value), prize: num(g('prize').value),
                     kill: num(g('kill').value), slots: Math.max(1, num(g('slots').value) || 1)
@@ -1222,10 +1215,13 @@ window.pickImg = function(id){
         }
 
         function schMinutes(c) {
-            const [h, mi] = String(c.start).split(':').map(Number);
             const list = [];
-            for(let t = h*60 + mi; t < 24*60; t += c.gap) list.push(t);
-            return list;
+            String(c.blocks || '').split(',').map(x => x.trim()).filter(Boolean).forEach(b => {
+                const [h, mi] = b.split(':').map(Number);
+                if(isNaN(h) || isNaN(mi)) return;
+                for(let k = 0; k < (c.per || 1); k++) { const t = h*60 + mi + k*c.gap; if(t < 24*60) list.push(t); }
+            });
+            return list.sort((x, y) => x - y);
         }
 
         window.schCheck = () => {
@@ -1337,11 +1333,6 @@ window.pickImg = function(id){
                     document.getElementById('set-vid-room').value = d.how_to_get_room_id_link || '';
                     document.getElementById('set-extra').value = d.extra_links || '';
                     document.getElementById('set-rules').value = d.rules || '';
-                    const mn = d.match_notices || {};
-                    ['br','cs','cs2','lw2','lw1'].forEach(k => {
-                        const el = document.getElementById('set-notice-' + k);
-                        if(el) el.value = (mn[k] !== undefined && mn[k] !== null) ? mn[k] : DEFAULT_MATCH_NOTICES[k];
-                    });
                     const categoryRules = d.category_rules || {};
                     ['br','cs','cs2','lw2','lw1'].forEach(k => {
                         const el = document.getElementById('set-rules-' + k);
@@ -1351,8 +1342,6 @@ window.pickImg = function(id){
                     ['br','cs','cs2','lw2','lw1'].forEach(k => {
                         const el = document.getElementById('set-rules-' + k);
                         if(el) el.value = DEFAULT_CATEGORY_RULES[k];
-                        const en = document.getElementById('set-notice-' + k);
-                        if(en) en.value = DEFAULT_MATCH_NOTICES[k];
                     });
                 }
             });
@@ -1381,13 +1370,6 @@ window.pickImg = function(id){
                     cs2: document.getElementById('set-rules-cs2').value,
                     lw2: document.getElementById('set-rules-lw2').value,
                     lw1: document.getElementById('set-rules-lw1').value
-                },
-                match_notices: {
-                    br: document.getElementById('set-notice-br').value,
-                    cs: document.getElementById('set-notice-cs').value,
-                    cs2: document.getElementById('set-notice-cs2').value,
-                    lw2: document.getElementById('set-notice-lw2').value,
-                    lw1: document.getElementById('set-notice-lw1').value
                 }
             };
             update(ref(db, 'app_settings'), data).then(() => {
