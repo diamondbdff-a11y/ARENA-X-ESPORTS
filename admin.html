@@ -1238,7 +1238,7 @@ window.pickImg = function(id){
             try {
                 const s = (await get(ref(db, 'app_settings'))).val() || {};
                 const saved = s.schedule || {};
-                Object.keys(schCfg).forEach(id => { if(saved[id]) schCfg[id] = Object.assign({}, SCH_DEFAULT[id], saved[id]); });
+                Object.keys(schCfg).forEach(id => { if(saved[id]) schCfg[id] = Object.assign({}, SCH_DEFAULT[id], saved[id], { blocks: SCH_DEFAULT[id].blocks, per: SCH_DEFAULT[id].per, gap: SCH_DEFAULT[id].gap }); });
                 const a = document.getElementById('sch-auto'); if(a) a.value = (s.schedule_auto === false) ? 'false' : 'true';
                 const d = document.getElementById('sch-date'); if(d && !d.value) d.value = todayStr();
             } catch(e) { console.error(e); }
@@ -1321,7 +1321,7 @@ window.pickImg = function(id){
                 const s = (await get(ref(db, 'app_settings'))).val() || {};
                 const today = todayStr();
                 if(s.schedule_auto === false || !s.schedule || s.schedule_last === today) return;
-                const cfg = {}; Object.keys(SCH_DEFAULT).forEach(id => cfg[id] = Object.assign({}, SCH_DEFAULT[id], s.schedule[id] || {}));
+                const cfg = {}; Object.keys(SCH_DEFAULT).forEach(id => cfg[id] = Object.assign({}, SCH_DEFAULT[id], s.schedule[id] || {}, { blocks: SCH_DEFAULT[id].blocks, per: SCH_DEFAULT[id].per, gap: SCH_DEFAULT[id].gap }));
                 await buildDay(today, cfg);
                 await update(ref(db, 'app_settings'), { schedule_last: today });
             } catch(e) { console.error('auto schedule', e); }
