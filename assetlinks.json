@@ -8,5 +8,15 @@
         "98:47:4B:AD:7A:BE:D9:42:3A:22:A5:EE:BE:EA:1A:82:A7:0F:CE:B5:CB:B4:78:A8:4E:02:C7:AD:F1:32:77:A8"
       ]
     }
+  },
+  {
+    "relation": ["delegate_permission/common.handle_all_urls"],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "com.arenax.admin",
+      "sha256_cert_fingerprints": [
+        "98:47:4B:AD:7A:BE:D9:42:3A:22:A5:EE:BE:EA:1A:82:A7:0F:CE:B5:CB:B4:78:A8:4E:02:C7:AD:F1:32:77:A8"
+      ]
+    }
   }
 ]
