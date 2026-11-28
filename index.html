@@ -1,6 +1,8 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+<meta name="color-scheme" content="dark">
+<style id="boot-bg">html,body{background:#101018 !important}</style>
 <link rel="manifest" href="manifest.json">
 <meta name="theme-color" content="#0b1020">
 <link rel="icon" type="image/png" href="favicon.png">
@@ -8,10 +10,10 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>ARENA X ESPORTS</title>
-<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-<link href="https://fonts.googleapis.com/css2?family=Lato:wght@300;400;700;900&family=Hind+Siliguri:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" media="print" onload="this.media='all'">
+<link href="https://fonts.googleapis.com/css2?family=Lato:wght@300;400;700;900&family=Hind+Siliguri:wght@300;400;500;600;700&display=swap" rel="stylesheet" media="print" onload="this.media='all'">
 <!-- SweetAlert2 CSS -->
-<link href="https://cdn.jsdelivr.net/npm/@sweetalert2/theme-material-ui/material-ui.min.css" rel="stylesheet">
+<link href="https://cdn.jsdelivr.net/npm/@sweetalert2/theme-material-ui/material-ui.min.css" rel="stylesheet" media="print" onload="this.media='all'">
 
 <style>
     /* ================= CSS STYLES ================= */
@@ -2330,6 +2332,7 @@ window.hideSplash = function(){
   var sp=document.getElementById('app-splash'); if(!sp || sp.dataset.gone) return;
   var wait=Math.max(0, 350-(Date.now()-window.__splashT0));
   sp.dataset.gone='1';
+  setTimeout(function(){ var bb=document.getElementById('boot-bg'); if(bb) bb.remove(); }, wait+400);
   setTimeout(function(){ sp.style.opacity='0'; sp.style.transform='scale(1.04)'; sp.style.pointerEvents='none'; setTimeout(function(){sp.style.display='none'},340); }, wait);
 };
 setTimeout(function(){
@@ -2378,6 +2381,33 @@ setTimeout(function(){
     window.prepJoin = prepJoin;
     window.checkRoom = checkRoom;
     window.refreshMatch = refreshMatch;
+    // রিফ্রেশ বাটন: পুরো পেজ রিলোড না করে শুধু ডাটা নতুন করে আনে (যে স্ক্রিনে আছে সেখানেই থাকে)
+    window.refreshApp = async function(btn) {
+        if (window.__refreshing) return;
+        window.__refreshing = true;
+        try { if (btn) btn.classList.add('spin'); } catch(e) {}
+        const t0 = Date.now();
+        try {
+            const [c, m, p] = await Promise.all([
+                get(ref(db, 'categories')),
+                get(ref(db, 'matches')),
+                get(ref(db, 'match_participants')).catch(() => null)
+            ]);
+            const cd = c.val();
+            if (cd) { renderCats(cd); try { localStorage.setItem('cache_cats', JSON.stringify(cd)); } catch(e) {} }
+            rawMatches = [];
+            const md = m.val();
+            if (md) Object.entries(md).forEach(([k, v]) => rawMatches.push({ dbKey: k, ...v }));
+            if (p) allParticipants = p.val() || {};
+            updateCounts();
+            calculateJoinedMatches();
+            if (document.getElementById('matches-view').classList.contains('active')) filterMatchTab(currentMatchFilter);
+            if (document.getElementById('tab-mymatches-view').classList.contains('active')) loadMyMatches();
+            if (document.getElementById('tab-result-view').classList.contains('active')) loadResults();
+        } catch (e) {}
+        const wait = Math.max(0, 700 - (Date.now() - t0));
+        setTimeout(() => { try { if (btn) btn.classList.remove('spin'); } catch(e) {} window.__refreshing = false; }, wait);
+    };
     window.copyText = copyText;
     window.openPrizePool = openPrizePool;
     window.showTab = showTab;
