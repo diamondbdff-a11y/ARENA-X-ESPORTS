@@ -1513,6 +1513,38 @@
     .top-header { position:fixed; top:0; left:0; right:0; height:60px; background:#fff; display:flex; align-items:center; gap:10px; padding:0 12px; box-shadow:0 1px 6px rgba(0,0,0,.1); z-index:900; }
     .top-header img { width:42px; height:42px; border-radius:10px; object-fit:cover; }
     .th-name { flex:1; min-width:0; font-size:14px; font-weight:900; color:#111; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+
+    /* ===== নোটিফিকেশন পেজ + বেল রিং ===== */
+    @keyframes bellRing { 0%{transform:rotate(0)} 10%{transform:rotate(18deg)} 20%{transform:rotate(-16deg)} 30%{transform:rotate(14deg)} 40%{transform:rotate(-12deg)} 50%{transform:rotate(9deg)} 60%{transform:rotate(-6deg)} 70%{transform:rotate(3deg)} 100%{transform:rotate(0)} }
+    @keyframes badgePop { 0%{transform:scale(1)} 40%{transform:scale(1.5)} 100%{transform:scale(1)} }
+    .th-bell i { display:inline-block; transform-origin:50% 12%; }
+    .th-bell.ring i { animation:bellRing 1.1s ease-in-out; }
+    .th-bell.ring .th-badge { animation:badgePop .6s ease; }
+    .nf-wrap { background:#f4f6fb; min-height:60vh; padding-bottom:30px; }
+    .nf-top { display:flex; align-items:center; justify-content:space-between; padding:6px 16px 10px; }
+    .nf-sub { font-size:14px; color:#666; font-weight:600; }
+    .nf-markall { background:none; border:0; color:#5b4bb5; font-size:20px; padding:6px 8px; cursor:pointer; }
+    .nf-seg { display:flex; margin:0 14px 12px; border:1.5px solid #79747e; border-radius:22px; overflow:hidden; }
+    .nf-seg button { flex:1; padding:11px 0; border:0; background:#fff; font-size:15px; font-weight:700; color:#1c1b1f; cursor:pointer; }
+    .nf-seg button + button { border-left:1.5px solid #79747e; }
+    .nf-seg button.on { background:#e8def8; }
+    .nf-chips { display:flex; gap:8px; overflow-x:auto; padding:0 14px 12px; scrollbar-width:none; }
+    .nf-chips::-webkit-scrollbar { display:none; }
+    .nf-chip { flex:0 0 auto; display:flex; align-items:center; gap:6px; padding:8px 13px; border:1.5px solid #79747e; border-radius:10px; background:#fff; font-size:14px; font-weight:600; color:#1c1b1f; cursor:pointer; }
+    .nf-chip.on { background:#e8def8; border-color:#6750a4; }
+    .nf-chip i { font-size:14px; }
+    .nf-day { font-size:14px; font-weight:800; color:#666; padding:12px 16px 6px; }
+    .nf-card { display:flex; gap:14px; margin:0 12px 10px; padding:14px; background:#fff; border:1px solid #e6e6ee; border-radius:16px; }
+    .nf-card.unread { background:#eef3fd; border-color:#c9d8f5; }
+    .nf-ico { flex:0 0 46px; width:46px; height:46px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:19px; }
+    .nf-body { flex:1; min-width:0; }
+    .nf-row { display:flex; justify-content:space-between; gap:8px; align-items:flex-start; }
+    .nf-title { font-size:16px; font-weight:800; color:#1c1b1f; line-height:1.3; }
+    .nf-time { font-size:13px; color:#777; white-space:nowrap; display:flex; align-items:center; gap:6px; }
+    .nf-dot { width:10px; height:10px; border-radius:50%; background:#1a73e8; display:inline-block; }
+    .nf-text { font-size:14px; color:#555; margin-top:3px; line-height:1.45; word-break:break-word; }
+    .nf-cat { font-size:12px; font-weight:800; letter-spacing:.4px; margin-top:8px; text-transform:uppercase; }
+    .nf-empty { text-align:center; color:#888; padding:50px 20px; font-size:15px; }
     .th-bell { position:relative; background:none; border:0; font-size:20px; color:#111; padding:8px; margin-right:18px; cursor:pointer; }
     .th-bal { display:flex; align-items:center; gap:5px; background:#fff; border:1.5px solid #e53935; color:#e53935; border-radius:18px; padding:5px 10px; font-weight:900; font-size:13px; cursor:pointer; white-space:nowrap; }
     .btn-refresh { flex:0 0 42px; width:42px; border:1px solid #1565C0; color:#1565C0; background:#fff; border-radius:4px; font-size:15px; cursor:pointer; display:flex; align-items:center; justify-content:center; }
@@ -2551,7 +2583,7 @@
             if(document.getElementById('tab-mymatches-view').classList.contains('active')) {
                 loadMyMatches();
             }
-            loadResults(); 
+            if(document.getElementById('tab-result-view').classList.contains('active')) loadResults();
         });
 
         // match_participants লিসেনার এখন লগইনের পর চালু হয়
@@ -2673,7 +2705,7 @@
             if(t === 'mymatches') loadMyMatches();
             if(t === 'result') loadResults();
             toggleLoader(false);
-        }, 500);
+        }, 60);
     }
 
     function navigateSub(t) {
@@ -2704,7 +2736,7 @@
                  document.getElementById('ep-email').value = currentUser.email || '';
             }
             toggleLoader(false);
-        }, 500);
+        }, 60);
     }
 
     function selectWithdrawMethod(el, method) {
@@ -2733,7 +2765,7 @@
         
         m.sort((a,b) => status==='Upcoming' ? (Number(a.timestamp)||0)-(Number(b.timestamp)||0) : (Number(b.timestamp)||0)-(Number(a.timestamp)||0));
         if(m.length === 0) c.innerHTML = `<div class='empty-msg'>No ${status} Matches Found</div>`;
-        else m.forEach(x => c.innerHTML += createMatchCardHTML(x, (status==='Finished' ? 'result' : 'play')));
+        else c.innerHTML = m.map(x => createMatchCardHTML(x, (status==='Finished' ? 'result' : 'play'))).join('');
     }
 
     function loadMyMatches() {
@@ -2746,16 +2778,16 @@
          const m = rawMatches.filter(x => userJoinedMatches.includes(x.dbKey));
          
          if(m.length===0) c.innerHTML = "<div class='empty-msg'>No joined matches</div>";
-         else m.forEach(x => c.innerHTML += createMatchCardHTML(x, 'joined'));
+         else c.innerHTML = m.map(x => createMatchCardHTML(x, 'joined')).join('');
     }
 
     function loadResults() {
          const c = document.getElementById('result-container');
          if(!c) return;
          c.innerHTML = "";
-         const m = rawMatches.filter(x => x.status === 'Finished');
+         const m = rawMatches.filter(x => x.status === 'Finished').sort((a,b) => (Number(b.timestamp)||0)-(Number(a.timestamp)||0)).slice(0, 30);
          if(m.length===0) c.innerHTML = "<div class='empty-msg'>No results yet</div>";
-         else m.forEach(x => c.innerHTML += createMatchCardHTML(x, 'result'));
+         else c.innerHTML = m.map(x => createMatchCardHTML(x, 'result')).join('');
     }
 
     function createMatchCardHTML(m, type) {
@@ -2801,7 +2833,7 @@
         <div class="match-card" data-key="${esc(m.dbKey)}" data-type="${type}" onclick="${type==='result' ? `window.openResultDetails('${m.dbKey}')` : `window.openMatchDetails('${m.dbKey}')`}">
             <div class="mc-header">
                 ${m.match_no ? `<div style="position:absolute;top:0;right:0;background:#f57c00;color:#fff;font-size:12px;font-weight:800;padding:3px 8px;border-radius:0 0 0 6px;">#${m.match_no}</div>` : ''}
-                <img src="${catImg}" class="mc-thumb">
+                <img src="${catImg}" class="mc-thumb" loading="lazy" decoding="async">
                 <div class="mc-header-info">
                     <div class="mc-title-row">${m.no_suffix ? m.title : (m.title + ' | Mobile | Regular')}</div>
                     <div class="mc-date-row">${m.time}</div>
@@ -2913,7 +2945,7 @@
             }
             
             toggleLoader(false);
-        }, 500);
+        }, 60);
     }
     
     function openResultDetails(key) {
@@ -2995,7 +3027,7 @@
             </div>`;
             
             toggleLoader(false);
-        }, 500);
+        }, 60);
     }
 
     function openPrizePool(key) {
@@ -3505,37 +3537,147 @@
          });
     }
     
+    /* ===== নোটিফিকেশন সিস্টেম: বেল রিং + All/Unread + ক্যাটাগরি ===== */
+    const NF = { data: {}, known: null, read: 'all', cat: 'all', ac: null, ringTimer: null };
+    const NF_CATS = {
+        announcements: { label: 'Announcements', icon: 'fa-bullhorn', color: '#f59300', bg: '#fdeedb' },
+        wallet:        { label: 'Wallet',        icon: 'fa-wallet',   color: '#1e9e4a', bg: '#dcf3e3' },
+        results:       { label: 'Results',       icon: 'fa-trophy',   color: '#8e44ad', bg: '#efe1f6' }
+    };
     function getSeenNotifs() { try { return JSON.parse(localStorage.getItem('seen_notifs') || '[]'); } catch (e) { return []; } }
-    function updateNotifBadge(keys) {
-        const b = document.getElementById('th-badge'); if (!b) return;
-        const seen = getSeenNotifs();
-        const n = keys.filter(k => seen.indexOf(k) === -1).length;
-        if (n > 0) { b.textContent = n > 9 ? '9+' : n; b.style.display = 'block'; } else { b.style.display = 'none'; }
+    function setSeenNotifs(arr) { try { localStorage.setItem('seen_notifs', JSON.stringify(arr.slice(-600))); } catch (e) {} }
+    function nfEsc(v) { return String(v == null ? '' : v).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }
+    function nfCat(n) {
+        const t = String(n.type || n.category || '').toLowerCase();
+        if (t.indexOf('wallet') > -1) return 'wallet';
+        if (t.indexOf('result') > -1) return 'results';
+        if (t.indexOf('announce') > -1) return 'announcements';
+        const x = ((n.title || '') + ' ' + (n.body || '')).toLowerCase();
+        if (/wallet|ওয়ালেট|ডিপোজিট|deposit|withdraw|উইথড্র|ব্যালেন্স|balance|পেমেন্ট|payment|রিচার্জ|টাকা/.test(x)) return 'wallet';
+        if (/result|রেজাল্ট|winner|বিজয়ী|জয়ী|পুরস্কার|congrat/.test(x)) return 'results';
+        return 'announcements';
     }
-    function markNotifsSeen(keys) {
-        try { localStorage.setItem('seen_notifs', JSON.stringify(keys)); } catch (e) {}
-        updateNotifBadge(keys);
+    function nfItems() {
+        const seen = new Set(getSeenNotifs());
+        return Object.entries(NF.data).map(([k, n], i) => {
+            const ts = Number(n.ts) || Date.parse(n.time) || 0;
+            return { key: k, n: n, idx: i, ts: ts, cat: nfCat(n), unread: !seen.has(k) };
+        }).sort((a, b) => (b.ts && a.ts) ? b.ts - a.ts : b.idx - a.idx);
     }
+    function nfAgo(ts) {
+        if (!ts) return '';
+        const m = Math.floor((Date.now() - ts) / 60000);
+        if (m < 1) return 'just now';
+        if (m < 60) return m + ' min. ago';
+        const h = Math.floor(m / 60);
+        if (h < 24) return h + ' hr. ago';
+        const d = Math.floor(h / 24);
+        return d + (d === 1 ? ' day ago' : ' days ago');
+    }
+    function nfDay(ts) {
+        if (!ts) return 'Earlier';
+        const a = new Date(); a.setHours(0, 0, 0, 0);
+        const diff = Math.round((a.getTime() - new Date(ts).setHours(0, 0, 0, 0)) / 86400000);
+        return diff <= 0 ? 'Today' : (diff === 1 ? 'Yesterday' : 'Earlier');
+    }
+    function updateNotifBadge() {
+        const n = nfItems().filter(x => x.unread).length;
+        const b = document.getElementById('th-badge');
+        if (b) { if (n > 0) { b.textContent = n > 9 ? '9+' : n; b.style.display = 'block'; } else { b.style.display = 'none'; } }
+        const mb = document.getElementById('menu-notif-badge');
+        if (mb) { if (n > 0) { mb.textContent = n; mb.style.display = 'inline-block'; } else { mb.style.display = 'none'; } }
+        return n;
+    }
+    function nfBeep() {
+        try {
+            const A = window.AudioContext || window.webkitAudioContext; if (!A) return;
+            const c = NF.ac || (NF.ac = new A()); if (c.state === 'suspended') c.resume();
+            [[880, 0], [1175, 0.16]].forEach(([f, d]) => {
+                const o = c.createOscillator(), g = c.createGain();
+                o.type = 'sine'; o.frequency.value = f; o.connect(g); g.connect(c.destination);
+                const t = c.currentTime + d;
+                g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(0.25, t + 0.02); g.gain.exponentialRampToValueAtTime(0.0001, t + 0.35);
+                o.start(t); o.stop(t + 0.4);
+            });
+        } catch (e) {}
+    }
+    function ringBell(withSound) {
+        const b = document.querySelector('.th-bell'); if (!b) return;
+        b.classList.remove('ring'); void b.offsetWidth; b.classList.add('ring');
+        setTimeout(() => b.classList.remove('ring'), 1300);
+    }
+    // ব্রাউজার সাউন্ড চালাতে প্রথম টাচে অডিও চালু করে রাখি
+    ['touchstart', 'click'].forEach(ev => document.addEventListener(ev, function once() {
+        try { const A = window.AudioContext || window.webkitAudioContext; if (A && !NF.ac) NF.ac = new A(); if (NF.ac && NF.ac.state === 'suspended') NF.ac.resume(); } catch (e) {}
+        document.removeEventListener(ev, once);
+    }, { passive: true }));
+    // আনরিড থাকলে মাঝে মাঝে বেল আপনা-আপনি দোলে (শব্দ ছাড়া)
+    function nfScheduleRing(n) {
+        clearInterval(NF.ringTimer);
+        if (n > 0) NF.ringTimer = setInterval(() => { if (!document.hidden) ringBell(false); }, 9000);
+    }
+    function nfActive() { return document.getElementById('notifications-view').classList.contains('active'); }
+
     try {
         onValue(ref(db, 'notifications'), s => {
-            const d = s.val(); const keys = d ? Object.keys(d) : [];
-            if (document.getElementById('notifications-view').classList.contains('active')) markNotifsSeen(keys);
-            else updateNotifBadge(keys);
+            NF.data = s.val() || {};
+            const keys = Object.keys(NF.data);
+            const n = updateNotifBadge();
+            if (NF.known === null) { NF.known = new Set(keys); if (n > 0) setTimeout(() => ringBell(false), 1500); }
+            else {
+                const fresh = keys.filter(k => !NF.known.has(k));
+                keys.forEach(k => NF.known.add(k));
+                if (fresh.length) ringBell(true);
+            }
+            nfScheduleRing(n);
+            if (nfActive()) renderNotifs();
         });
     } catch (e) {}
 
-    function loadNotifs() {
-        const l = document.getElementById('notif-list-container');
-        if(!l) return;
-        onValue(ref(db, 'notifications'), s => {
-            l.innerHTML = "";
-            const d = s.val();
-            if (document.getElementById('notifications-view').classList.contains('active')) markNotifsSeen(d ? Object.keys(d) : []);
-            if(d) Object.values(d).reverse().forEach(n => {
-                l.innerHTML += `<div style="padding:15px; border-bottom:1px solid #eee; font-weight:bold;">${n.title}<br><span style="font-weight:normal; font-size:13px; color:#666;">${n.body}</span></div>`;
-            });
+    function renderNotifs() {
+        const l = document.getElementById('notif-list-container'); if (!l) return;
+        const all = nfItems();
+        const unreadN = all.filter(x => x.unread).length;
+        const byCat = c => all.filter(x => (c === 'all' || x.cat === c) && x.unread).length;
+        let list = all.filter(x => (NF.cat === 'all' || x.cat === NF.cat) && (NF.read === 'all' || x.unread));
+        let h = '<div class="nf-wrap"><div class="nf-top"><div class="nf-sub">' + (unreadN ? unreadN + ' unread' : 'All caught up') + '</div>' +
+            '<button class="nf-markall" data-act="markall" aria-label="Mark all read"><i class="fas fa-check-double"></i></button></div>' +
+            '<div class="nf-seg"><button class="' + (NF.read === 'all' ? 'on' : '') + '" data-read="all">All</button><button class="' + (NF.read === 'unread' ? 'on' : '') + '" data-read="unread">Unread</button></div>' +
+            '<div class="nf-chips"><div class="nf-chip ' + (NF.cat === 'all' ? 'on' : '') + '" data-cat="all"><i class="fas fa-check"></i> All' + (byCat('all') ? ' · ' + byCat('all') : '') + '</div>';
+        Object.keys(NF_CATS).forEach(k => {
+            const c = NF_CATS[k], u = byCat(k);
+            h += '<div class="nf-chip ' + (NF.cat === k ? 'on' : '') + '" data-cat="' + k + '"><i class="fas ' + c.icon + '" style="color:' + c.color + '"></i> ' + c.label + (u ? ' · ' + u : '') + '</div>';
         });
+        h += '</div>';
+        if (!list.length) h += '<div class="nf-empty">' + (NF.read === 'unread' ? 'কোনো আনরিড নোটিফিকেশন নেই' : 'কোনো নোটিফিকেশন নেই') + '</div>';
+        else {
+            let lastDay = '';
+            list.forEach(x => {
+                const d = nfDay(x.ts), c = NF_CATS[x.cat];
+                if (d !== lastDay) { h += '<div class="nf-day">' + d + '</div>'; lastDay = d; }
+                h += '<div class="nf-card ' + (x.unread ? 'unread' : '') + '" data-k="' + nfEsc(x.key) + '">' +
+                    '<div class="nf-ico" style="background:' + c.bg + ';color:' + c.color + '"><i class="fas ' + c.icon + '"></i></div>' +
+                    '<div class="nf-body"><div class="nf-row"><div class="nf-title">' + nfEsc(x.n.title) + '</div>' +
+                    '<div class="nf-time">' + nfAgo(x.ts) + (x.unread ? '<span class="nf-dot"></span>' : '') + '</div></div>' +
+                    '<div class="nf-text">' + nfEsc(x.n.body) + '</div><div class="nf-cat" style="color:' + c.color + '">' + c.label + '</div></div></div>';
+            });
+        }
+        l.innerHTML = h + '</div>';
     }
+    (function () {
+        const l = document.getElementById('notif-list-container'); if (!l) return;
+        l.addEventListener('click', e => {
+            const t = e.target;
+            const r = t.closest('[data-read]'); if (r) { NF.read = r.dataset.read; return renderNotifs(); }
+            const c = t.closest('[data-cat]'); if (c) { NF.cat = c.dataset.cat; return renderNotifs(); }
+            if (t.closest('[data-act="markall"]')) { setSeenNotifs(Object.keys(NF.data)); nfScheduleRing(updateNotifBadge()); return renderNotifs(); }
+            const k = t.closest('.nf-card'); if (k) {
+                const seen = getSeenNotifs(); if (seen.indexOf(k.dataset.k) === -1) { seen.push(k.dataset.k); setSeenNotifs(seen); }
+                nfScheduleRing(updateNotifBadge()); renderNotifs();
+            }
+        });
+    })();
+    function loadNotifs() { renderNotifs(); }
 </script>
 <script>
 /* ===== হেডারের নাম, লোগো, ব্যালেন্স ===== */
