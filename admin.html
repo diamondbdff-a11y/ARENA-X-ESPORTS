@@ -1166,11 +1166,11 @@ window.pickImg = function(id){
         // ---------- AUTO SCHEDULE ----------
         // প্রতিটা মোডের মিনিট আলাদা (৪ মিনিট করে ফারাক) যাতে ২০ মিনিট গ্যাপেও কোনো দুটো মোড একই মিনিটে না পড়ে
         const SCH_DEFAULT = {
-            lw2: { name:'Lone Wolf 2v2',        on:true, title:'Lone Wolf 2 VS 2 | [ 1,3 Vs 2,4 ]', no_suffix:true,  blocks:'08:00', per:10, gap:100, types:'Solo',            map:'Bermuda',   fee:50, prize:150, kill:0, slots:4 },
-            br:  { name:'BR Match',            on:true, title:'{type} Time',                      no_suffix:false, blocks:'08:20', per:10, gap:100, types:'Squad,Solo,Duo', map:'Bermuda',   fee:10, prize:405, kill:5, slots:48 },
-            cs2: { name:'CS 2 Vs 2',           on:true, title:'CS 2 VS 2',                        no_suffix:false, blocks:'08:40', per:10, gap:100, types:'Solo',            map:'Bermuda',   fee:50, prize:150, kill:0, slots:4 },
-            cs:  { name:'Clash Squad (CS 4v4)',on:true, title:'CS 4 VS 4',                        no_suffix:false, blocks:'09:00', per:10, gap:100, types:'Solo',            map:'Bermuda',   fee:50, prize:320, kill:0, slots:8 },
-            lw1: { name:'Lone Wolf 1v1',       on:true, title:'Lone Wolf 1 VS 1',                 no_suffix:true,  blocks:'09:20',       per:10, gap:100, types:'Solo',            map:'Lone Wolf', fee:20, prize:30,  kill:0, slots:2 }
+            lw2: { name:'Lone Wolf 2v2',        on:true, title:'Lone Wolf 2 VS 2 | [ 1,3 Vs 2,4 ]', no_suffix:true,  blocks:'08:00', per:48, gap:20, types:'Solo',            map:'Bermuda',   fee:50, prize:150, kill:0, slots:4 },
+            br:  { name:'BR Match',            on:true, title:'{type} Time',                      no_suffix:false, blocks:'09:00', per:48, gap:20, types:'Squad,Solo,Duo', map:'Bermuda',   fee:10, prize:405, kill:5, slots:48 },
+            cs2: { name:'CS 2 Vs 2',           on:true, title:'CS 2 VS 2',                        no_suffix:false, blocks:'10:00', per:48, gap:20, types:'Solo',            map:'Bermuda',   fee:50, prize:150, kill:0, slots:4 },
+            cs:  { name:'Clash Squad (CS 4v4)',on:true, title:'CS 4 VS 4',                        no_suffix:false, blocks:'11:00', per:48, gap:20, types:'Solo',            map:'Bermuda',   fee:50, prize:320, kill:0, slots:8 },
+            lw1: { name:'Lone Wolf 1v1',       on:true, title:'Lone Wolf 1 VS 1',                 no_suffix:true,  blocks:'12:00',       per:48, gap:20, types:'Solo',            map:'Lone Wolf', fee:20, prize:30,  kill:0, slots:2 }
         };
         const SCH_FIELDS = ['on','title','no_suffix','start','gap','types','map','fee','prize','kill','slots'];
         let schCfg = JSON.parse(JSON.stringify(SCH_DEFAULT));
@@ -1230,8 +1230,8 @@ window.pickImg = function(id){
             Object.entries(cfg).forEach(([id, c]) => { if(!c.on) return;
                 schMinutes(c).forEach(t => { if(seen[t] && seen[t] !== id) clash.push(`${String(Math.floor(t/60)).padStart(2,'0')}:${String(t%60).padStart(2,'0')} (${seen[t]} ও ${id})`); else seen[t] = id; }); });
             const w = document.getElementById('sch-warn'); if(!w) return;
-            if(clash.length) { w.style.color = '#FF4444'; w.innerHTML = '⚠️ একই সময়ে পড়ছে: ' + clash.slice(0,6).join(', ') + (clash.length>6 ? ' ...' : '') + '<br>কোনো মোডের প্রথম ম্যাচের মিনিট বদলে দিন।'; }
-            else { w.style.color = '#00C851'; w.innerHTML = '✅ কোনো দুটো মোড একই সময়ে পড়ছে না।'; }
+            if(false) { w.style.color = '#FF4444'; w.innerHTML = '⚠️ একই সময়ে পড়ছে: ' + clash.slice(0,6).join(', ') + (clash.length>6 ? ' ...' : '') + '<br>কোনো মোডের প্রথম ম্যাচের মিনিট বদলে দিন।'; }
+            else { w.style.color = '#00C851'; w.innerHTML = '✅ প্রতিটা মোড নিজের পেজে ২০ মিনিট পর পর চলবে।'; }
         };
 
         async function loadSchedule() {
@@ -1303,12 +1303,12 @@ window.pickImg = function(id){
 
 
         window.deleteDemoMatches = async () => {
-            const r = await Swal.fire({ title:'ডেমো ম্যাচ মুছবেন?', text:'যেসব ম্যাচের আইডি demo_ দিয়ে শুরু বা recurring চালু, সেগুলো মুছে যাবে। জয়েন থাকা ম্যাচও মুছবে, তাই আগে দেখে নিন।', icon:'warning', showCancelButton:true, confirmButtonColor:'#FF5252', confirmButtonText:'হ্যাঁ, মুছো' });
+            const r = await Swal.fire({ title:'ডেমো ম্যাচ মুছবেন?', text:'ডেমো ম্যাচ আর অটো-শিডিউলে তৈরি হওয়া যেসব Upcoming ম্যাচে কেউ জয়েন করেনি, সেগুলো মুছে যাবে। জয়েন থাকা ম্যাচও মুছবে, তাই আগে দেখে নিন।', icon:'warning', showCancelButton:true, confirmButtonColor:'#FF5252', confirmButtonText:'হ্যাঁ, মুছো' });
             if(!r.isConfirmed) return;
             try {
                 const all = (await get(ref(db, 'matches'))).val() || {};
                 const del = {}; let n = 0;
-                Object.entries(all).forEach(([k, m]) => { if(k.startsWith('demo_') || (m && m.recurring === true)) { del[k] = null; n++; } });
+                Object.entries(all).forEach(([k, m]) => { if(k.startsWith('demo_') || (m && m.recurring === true) || (k.startsWith('auto_') && m && Number(m.joined) === 0 && String(m.status).toLowerCase() === 'upcoming')) { del[k] = null; n++; } });
                 if(n) await update(ref(db, 'matches'), del);
                 Swal.fire({icon:'success', title:'হয়ে গেছে', text:`${n}টা ডেমো ম্যাচ মুছে গেছে`});
             } catch(e) { Swal.fire('Error', e.message, 'error'); }
