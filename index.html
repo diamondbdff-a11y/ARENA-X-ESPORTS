@@ -4,12 +4,27 @@
 <meta name="color-scheme" content="dark">
 <style id="boot-bg">html,body{background:#101018 !important}</style>
 <link rel="manifest" href="manifest.json">
+<link rel="preconnect" href="https://www.gstatic.com" crossorigin>
+<link rel="preconnect" href="https://arena-x-esports-b4b37-default-rtdb.europe-west1.firebasedatabase.app" crossorigin>
+<link rel="modulepreload" href="local-db.js">
+<link rel="modulepreload" href="https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js" crossorigin>
+<link rel="modulepreload" href="https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js" crossorigin>
+<link rel="modulepreload" href="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js" crossorigin>
 <meta name="theme-color" content="#0b1020">
 <link rel="icon" type="image/png" href="favicon.png">
 <link rel="apple-touch-icon" href="icon-192.png">
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>ARENA X ESPORTS</title>
+<title>ARENA X ESPORTS – Free Fire টুর্নামেন্ট, ম্যাচ জয়েন করে জিতুন</title>
+<meta name="description" content="ARENA X ESPORTS: বাংলাদেশের Free Fire টুর্নামেন্ট প্ল্যাটফর্ম। BR Match, BR Survival ম্যাচে জয়েন করুন, প্রাইজ জিতুন, বিকাশ/নগদ/রকেটে সহজে ডিপোজিট ও উইথড্র করুন।">
+<meta name="robots" content="index, follow">
+<link rel="canonical" href="https://arena-x-esports-1.onrender.com/">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="ARENA X ESPORTS">
+<meta property="og:title" content="ARENA X ESPORTS – Free Fire টুর্নামেন্ট">
+<meta property="og:description" content="ম্যাচ জয়েন করুন, জিতুন। Free Fire BR Match ও Survival টুর্নামেন্ট।">
+<meta property="og:url" content="https://arena-x-esports-1.onrender.com/">
+<!-- Google Search Console ভেরিফিকেশন ট্যাগ এখানে বসবে: <meta name="google-site-verification" content="..."> -->
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" media="print" onload="this.media='all'">
 <link href="https://fonts.googleapis.com/css2?family=Lato:wght@300;400;700;900&family=Hind+Siliguri:wght@300;400;500;600;700&display=swap" rel="stylesheet" media="print" onload="this.media='all'">
 <!-- SweetAlert2 CSS -->
@@ -2332,7 +2347,8 @@ window.__pre = {};
   window.__drawCats = function(d){
     var c=document.getElementById('dynamic-category-list'); if(!c||!d) return;
     window.__lastCats=d;
-    c.innerHTML=Object.keys(d).map(function(k){var v=d[k];return '<div class="cat-card-new" onclick="window.openCategory(\''+k+'\')"><img src="'+v.img+'" class="cat-card-img"><div class="cat-card-info"><div class="cat-card-title">'+v.name+'</div><div class="cat-card-count" id="count-'+k+'">0 matches found</div></div></div>';}).join('');
+    var cn={}; try{cn=JSON.parse(localStorage.getItem('cache_counts')||'{}')||{};}catch(e){}
+    c.innerHTML=Object.keys(d).map(function(k){var v=d[k];var t=(cn[k]!=null)?(cn[k]+' matches found'):'&nbsp;';return '<div class="cat-card-new" onclick="window.openCategory(\''+k+'\')"><img src="'+v.img+'" class="cat-card-img"><div class="cat-card-info"><div class="cat-card-title">'+v.name+'</div><div class="cat-card-count" id="count-'+k+'">'+t+'</div></div></div>';}).join('');
   };
   window.__drawBanners = function(bs){
     var w=document.getElementById('banner-slider-wrapper'), dots=document.getElementById('slider-dots');
@@ -2340,6 +2356,9 @@ window.__pre = {};
     w.innerHTML=bs.map(function(b){return '<div class="slide"'+(b.link?' onclick="window.open(\''+b.link+'\', \'_blank\')"':'')+'><img src="'+b.img+'"></div>';}).join('');
     dots.innerHTML=bs.map(function(b,i){return '<div class="dot'+(i===0?' active':'')+'"></div>';}).join('');
   };
+  // আগের বার দেখা নোটিশ সাথে সাথে (ডিফল্ট ইংরেজি লেখা থেকে লাফ বন্ধ)
+  window.__setNotice = function(t){ var e=document.getElementById('dynamic-notice'); if(e && t && e.innerText!==t) e.innerText=t; try{localStorage.setItem('cache_notice',t);}catch(x){} };
+  try { var cn0=localStorage.getItem('cache_notice'); if(cn0){ var ne=document.getElementById('dynamic-notice'); if(ne) ne.innerText=cn0; } } catch(e) {}
   // আগের বার দেখা ডাটা সাথে সাথে
   try { var cc=JSON.parse(localStorage.getItem('cache_cats')||'null'); if(cc) window.__drawCats(cc); } catch(e) {}
   try { var cb=JSON.parse(localStorage.getItem('cache_banners')||'null'); if(cb) window.__drawBanners(cb); } catch(e) {}
@@ -2436,6 +2455,7 @@ setTimeout(function(){
             const md = m.val();
             if (md) Object.entries(md).forEach(([k, v]) => rawMatches.push({ dbKey: k, ...v }));
             if (p) allParticipants = p.val() || {};
+            window.__matchesLoaded = true;
             updateCounts();
             calculateJoinedMatches();
             if (document.getElementById('matches-view').classList.contains('active')) filterMatchTab(currentMatchFilter);
@@ -2686,6 +2706,10 @@ setTimeout(function(){
     }
     function renderBanners(banners) {
         if(!banners || banners.length === 0) return;
+        const sig = JSON.stringify(banners);
+        if(window.__bannerSig === sig) return;
+        try { if(JSON.stringify(JSON.parse(localStorage.getItem('cache_banners')||'null')) === sig && document.querySelectorAll('.slide').length === banners.length) { window.__bannerSig = sig; initSlider(); return; } } catch(e) {}
+        window.__bannerSig = sig;
         window.__drawBanners(banners);
         slideIndex = 0;
         initSlider();
@@ -2706,6 +2730,7 @@ setTimeout(function(){
 
         let _mtTimer = null;
         onValue(ref(db, 'matches'), s => {
+            window.__matchesLoaded = true;
             rawMatches = [];
             const d = s.val();
             if(d) Object.entries(d).forEach(([k,v]) => {
@@ -2734,7 +2759,7 @@ setTimeout(function(){
                 if(d.app_name) document.getElementById('splash-app-name').innerText = d.app_name;
                 if(d.app_logo) { document.getElementById('splash-logo').src = d.app_logo; try { localStorage.setItem('app_logo', d.app_logo); } catch(e) {} }
                 showDownloadPopup(d);
-                if(d.notice) document.getElementById('dynamic-notice').innerText = d.notice;
+                if(d.notice) window.__setNotice(d.notice);
                 if(d.bkash_number) document.getElementById('bkash-num-display').innerText = d.bkash_number;
                 if(d.nagad_number) document.getElementById('nagad-num-display').innerText = d.nagad_number;
                 if(d.rocket_number) document.getElementById('rocket-num-display').innerText = d.rocket_number;
@@ -2751,7 +2776,15 @@ setTimeout(function(){
 
                 if(d.show_popup && d.popup_text) {
                     document.getElementById('startup-popup-content').innerHTML = d.popup_text.replace(/\n/g, '<br>');
-                    setTimeout(() => { document.getElementById('startup-modal').classList.add('active'); }, 1500);
+                    // একই লেখা এক অ্যাপ-সেশনে একবারই; সেটিং বদলালে বারবার ঠেলে উঠবে না
+                    let _seenPop = false;
+                    try { _seenPop = sessionStorage.getItem('pop_seen') === d.popup_text; } catch(e) {}
+                    if(!_seenPop && !window.__popQueued) {
+                        window.__popQueued = true;
+                        try { sessionStorage.setItem('pop_seen', d.popup_text); } catch(e) {}
+                        // স্প্ল্যাশ সরে হোম স্থির হওয়ার পর আসবে (আগে ১.৫ সেকেন্ডে লোডের মাঝখানে উঠত)
+                        setTimeout(() => { document.getElementById('startup-modal').classList.add('active'); }, 2600);
+                    }
                 }
 
                 if(d.banners) {
@@ -2791,11 +2824,16 @@ setTimeout(function(){
     }
 
     function updateCounts() {
+         // ম্যাচের ডাটা আসার আগে "0" দেখানো হবে না (আগের সংখ্যা বা ফাঁকা থাকবে)
+         if(!window.__matchesLoaded) return;
+         const saved = {};
          Object.keys(activeCategories).forEach(k => {
              const n = rawMatches.filter(m => m.categoryId === k && !['Finished', 'Expired'].includes(liveStatus(m))).length;
+             saved[k] = n;
              const el = document.getElementById(`count-${k}`);
              if(el) el.innerText = `${n} matches found`;
          });
+         try { localStorage.setItem('cache_counts', JSON.stringify(saved)); } catch(e) {}
     }
     
     let slideIndex = 0;
