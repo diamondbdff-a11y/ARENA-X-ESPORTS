@@ -84,7 +84,7 @@
         justify-content: center;
         align-items: center;
         color: white;
-        transition: opacity 0.5s ease-out;
+        transition: opacity 0.45s ease-out, transform 0.45s ease-out;
         overflow: hidden;
     }
 
@@ -374,6 +374,7 @@
     .app-section.active { animation: pageFade .28s ease-out; }
     #global-loader { background: rgba(0,0,0,0.22) !important; }
     #global-loader.active { animation: pageFade .15s ease-out; }
+    #auth-view.active { animation: pageFade .3s ease-out; }
     /* --- LAYOUT & SECTIONS --- */
     .app-section {
         display: none;
@@ -2290,7 +2291,22 @@
 <!-- SweetAlert2 JS -->
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 
-<script>setTimeout(function(){var sp=document.getElementById('app-splash');if(sp){sp.style.opacity='0';setTimeout(function(){sp.style.display='none'},500);}},5000);</script>
+<script>
+window.__splashT0 = Date.now();
+window.hideSplash = function(){
+  var sp=document.getElementById('app-splash'); if(!sp || sp.dataset.gone) return;
+  var wait=Math.max(0, 700-(Date.now()-window.__splashT0));
+  sp.dataset.gone='1';
+  setTimeout(function(){ sp.style.opacity='0'; sp.style.transform='scale(1.04)'; sp.style.pointerEvents='none'; setTimeout(function(){sp.style.display='none'},470); }, wait);
+};
+setTimeout(function(){
+  window.hideSplash();
+  setTimeout(function(){
+    var m=document.getElementById('main-content'), a=document.getElementById('auth-view');
+    if(m && a && m.style.display==='none' && !a.classList.contains('active')) a.classList.add('active');
+  },900);
+},4000);
+</script>
 <script type="module">
     import { initializeApp, getDatabase, ref, set, onValue, push, update, get, serverTimestamp, getAuth, GoogleAuthProvider, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, onAuthStateChanged, updateProfile, updatePassword, reauthenticateWithCredential, EmailAuthProvider, sendPasswordResetEmail, signInWithPopup, fallbackImg, API_URL } from "./local-db.js";
     window.addEventListener('error', e => { const t = e.target; if(t && t.tagName === 'IMG' && !t.dataset.fb){ t.dataset.fb = 1; t.src = fallbackImg('IMAGE'); } }, true);
@@ -2638,13 +2654,6 @@
                     }
                 }
             }
-            setTimeout(() => {
-                const splash = document.getElementById('app-splash');
-                if(splash) {
-                    splash.style.opacity = '0';
-                    setTimeout(() => splash.style.display = 'none', 500);
-                }
-            }, 300);
         });
 
         startTimers();
@@ -2700,11 +2709,12 @@
         if(show) l.classList.add('active'); else l.classList.remove('active');
     }
 
-    function showTab(t) {
-        toggleLoader(true);
+    function showTab(t, instant) {
+        if(!instant) toggleLoader(true);
         document.querySelectorAll('.tab-item').forEach(e => e.classList.remove('active'));
         document.getElementById(`nav-${t}`).classList.add('active');
-        setTimeout(() => {
+        const run = fn => instant ? fn() : setTimeout(fn, 350);
+        run(() => {
             document.querySelectorAll('.app-section').forEach(e => e.classList.remove('active'));
             document.getElementById(`tab-${t}-view`).classList.add('active');
             if(['shop', 'home', 'mymatches', 'result', 'profile'].includes(t)) {
@@ -2714,7 +2724,7 @@
             if(t === 'mymatches') loadMyMatches();
             if(t === 'result') loadResults();
             toggleLoader(false);
-        }, 350);
+        });
     }
 
     function navigateSub(t) {
@@ -3353,6 +3363,7 @@
     document.getElementById('ban-logout').addEventListener('click', () => signOut(auth));
 
     onAuthStateChanged(auth, u => {
+        const firstAuth = !window.__authDone; window.__authDone = true;
         showBan(null);
         if(u) {
             currentUser = u;
@@ -3373,7 +3384,8 @@
             document.getElementById('auth-view').classList.remove('active');
             document.getElementById('main-content').style.display = 'block';
             document.querySelector('.tab-bar').classList.remove('hidden');
-            showTab('home');
+            showTab('home', firstAuth);
+            if(firstAuth) window.hideSplash();
             
             // Recalculate joined matches since currentUser is now set
             calculateJoinedMatches();
@@ -3405,6 +3417,7 @@
             document.querySelector('.tab-bar').classList.add('hidden');
             document.getElementById('auth-view').classList.add('active');
             toggleAuthMode('login');
+            window.hideSplash();
         }
     });
 
