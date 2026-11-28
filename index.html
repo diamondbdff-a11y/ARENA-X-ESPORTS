@@ -2535,7 +2535,7 @@ setTimeout(function(){
         el.classList.toggle('fa-eye', show);
         el.classList.toggle('fa-eye-slash', !show);
     });
-    window.onload = () => { initData(); };
+    setTimeout(initData, 0);
 
     // সার্ভার ঘুমিয়ে থাকলে জাগাও, যাতে ম্যাচের সময় আপডেট হয়
     function wakeServer() {
@@ -2568,24 +2568,38 @@ setTimeout(function(){
         if(document.getElementById('tab-mymatches-view').classList.contains('active')) loadMyMatches();
     }
 
-    function initData() {
-        onValue(ref(db, 'categories'), s => {
-            const d = s.val();
-            if(d) {
-                activeCategories = d;
-                const c = document.getElementById('dynamic-category-list');
-                c.innerHTML = "";
-                Object.entries(d).forEach(([k,v]) => {
-                    c.innerHTML += `
+    function renderCats(d) {
+        activeCategories = d;
+        const c = document.getElementById('dynamic-category-list');
+        c.innerHTML = Object.entries(d).map(([k,v]) => `
                     <div class="cat-card-new" onclick="window.openCategory('${k}')">
                          <img src="${v.img}" class="cat-card-img">
                          <div class="cat-card-info">
                              <div class="cat-card-title">${v.name}</div>
                              <div class="cat-card-count" id="count-${k}">0 matches found</div>
                          </div>
-                    </div>`;
-                });
-                updateCounts();
+                    </div>`).join('');
+        updateCounts();
+    }
+    function renderBanners(banners) {
+        const w = document.getElementById('banner-slider-wrapper');
+        const dots = document.getElementById('slider-dots');
+        if(!banners || banners.length === 0) return;
+        w.innerHTML = banners.map(b => `<div class="slide" ${b.link ? `onclick="window.open('${b.link}', '_blank')"` : ''}><img src="${b.img}"></div>`).join('');
+        dots.innerHTML = banners.map((b, i) => `<div class="dot ${i===0?'active':''}"></div>`).join('');
+        slideIndex = 0;
+        initSlider();
+    }
+
+    function initData() {
+        // আগের বার দেখা ক্যাটাগরি আর ব্যানার সাথে সাথে দেখাও, নতুন ডাটা এলে বদলে যাবে
+        try { const cc = JSON.parse(localStorage.getItem('cache_cats') || 'null'); if(cc) renderCats(cc); } catch(e) {}
+        try { const cb = JSON.parse(localStorage.getItem('cache_banners') || 'null'); if(cb) renderBanners(cb); } catch(e) {}
+        onValue(ref(db, 'categories'), s => {
+            const d = s.val();
+            if(d) {
+                renderCats(d);
+                try { localStorage.setItem('cache_cats', JSON.stringify(d)); } catch(e) {}
             }
         });
 
@@ -2640,18 +2654,11 @@ setTimeout(function(){
                 }
 
                 if(d.banners) {
-                    const w = document.getElementById('banner-slider-wrapper');
-                    const dots = document.getElementById('slider-dots');
-                    w.innerHTML = ""; dots.innerHTML = "";
                     const banners = Object.values(d.banners);
-                    if(banners.length > 0) {
-                        banners.forEach((b, i) => {
-                            let clickAttr = b.link ? `onclick="window.open('${b.link}', '_blank')"` : "";
-                            w.innerHTML += `<div class="slide" ${clickAttr}><img src="${b.img}"></div>`;
-                            dots.innerHTML += `<div class="dot ${i===0?'active':''}"></div>`;
-                        });
-                        initSlider();
-                    }
+                    renderBanners(banners);
+                    try { localStorage.setItem('cache_banners', JSON.stringify(banners)); } catch(e) {}
+                } else {
+                    try { localStorage.removeItem('cache_banners'); } catch(e) {}
                 }
             }
         });
