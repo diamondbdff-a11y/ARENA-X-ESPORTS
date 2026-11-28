@@ -1569,6 +1569,13 @@
     body.refreshing #main-content .app-section.active { opacity:.45; }
     body.refresh-done #main-content .app-section.active { animation:rdone .35s ease-out; }
     @keyframes rdone { from { opacity:.45; transform:translateY(8px); } to { opacity:1; transform:none; } }
+    /* রিফ্রেশ চাপলে পুরো স্ক্রিন জুড়ে "ডাউনলোড হচ্ছে" ভাব: ঝাপসা পর্দা + ওপর থেকে নিচে নামা আলোর ঢেউ + মাঝখানে লোডার */
+    #refresh-veil { position:fixed; inset:0; z-index:9989; pointer-events:none; opacity:0; transition:opacity .18s ease; background:rgba(255,255,255,.55); -webkit-backdrop-filter:blur(2.5px); backdrop-filter:blur(2.5px); overflow:hidden; }
+    #refresh-veil::before { content:""; position:absolute; left:0; right:0; height:45%; top:-45%; background:linear-gradient(180deg,transparent,rgba(255,152,0,.28),transparent); animation:rveil 1s ease-in-out infinite; }
+    @keyframes rveil { from { top:-45%; } to { top:100%; } }
+    #refresh-veil .rv-box { position:absolute; left:50%; top:50%; transform:translate(-50%,-50%); display:flex; flex-direction:column; align-items:center; gap:10px; background:rgba(16,16,24,.88); color:#fff; padding:18px 26px; border-radius:16px; font-size:13px; font-weight:700; box-shadow:0 8px 28px rgba(0,0,0,.35); }
+    #refresh-veil .rv-ring { width:34px; height:34px; border-radius:50%; border:3.5px solid rgba(255,255,255,.25); border-top-color:#FF9800; animation:spin .7s linear infinite; }
+    body.refreshing #refresh-veil { opacity:1; }
     #refresh-toast { position:fixed; top:64px; left:50%; transform:translate(-50%,-12px); background:#222; color:#fff; padding:9px 18px; border-radius:20px; font-size:13px; font-weight:600; z-index:9991; opacity:0; pointer-events:none; transition:opacity .2s, transform .2s; white-space:nowrap; box-shadow:0 4px 14px rgba(0,0,0,.3); }
     #refresh-toast.show { opacity:1; transform:translate(-50%,0); }
     #refresh-toast.ok { background:#2E7D32; }
@@ -1712,6 +1719,7 @@
 </div>
 
 <div id="refresh-bar"></div>
+<div id="refresh-veil"><div class="rv-box"><div class="rv-ring"></div><div>ডাটা নামানো হচ্ছে...</div></div></div>
 <div id="refresh-toast"></div>
 <main id="main-content" style="display:none;">
     <header class="top-header">
@@ -2434,7 +2442,7 @@ setTimeout(function(){
             if (document.getElementById('tab-mymatches-view').classList.contains('active')) loadMyMatches();
             if (document.getElementById('tab-result-view').classList.contains('active')) loadResults();
         } catch (e) { ok = false; }
-        const wait = Math.max(0, 900 - (Date.now() - t0));
+        const wait = Math.max(0, 1400 - (Date.now() - t0));
         setTimeout(() => {
             try { if (btn) btn.classList.remove('spin'); } catch(e) {}
             document.body.classList.remove('refreshing');
