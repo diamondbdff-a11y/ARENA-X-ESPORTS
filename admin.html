@@ -423,6 +423,7 @@
                 <select id="sch-auto" class="form-input"><option value="true">Yes</option><option value="false">No</option></select></div>
             <button class="btn btn-primary" style="width:100%; margin-bottom:10px;" onclick="saveSchedule()">SAVE SCHEDULE</button>
             <button class="btn btn-primary" style="width:100%; background:#00C851;" onclick="generateMatches()"><i class="fas fa-bolt"></i> এই তারিখের সব ম্যাচ তৈরি করো</button>
+            <button class="btn btn-danger" style="width:100%; margin-top:10px;" onclick="deleteDemoMatches()"><i class="fas fa-trash"></i> পুরনো ডেমো ম্যাচ সব মুছো</button>
         </div>
     </section>
 
@@ -1297,6 +1298,19 @@ window.pickImg = function(id){
                 const res = await buildDay(dateStr, schCfg);
                 if(dateStr === todayStr()) await update(ref(db, 'app_settings'), { schedule_last: dateStr });
                 Swal.fire({icon:'success', title:'হয়ে গেছে', text:`${res.made}টা ম্যাচ তৈরি হয়েছে` + (res.skipped ? `, ${res.skipped}টা আগে থেকেই ছিল` : ''), });
+            } catch(e) { Swal.fire('Error', e.message, 'error'); }
+        };
+
+
+        window.deleteDemoMatches = async () => {
+            const r = await Swal.fire({ title:'ডেমো ম্যাচ মুছবেন?', text:'যেসব ম্যাচের আইডি demo_ দিয়ে শুরু বা recurring চালু, সেগুলো মুছে যাবে। জয়েন থাকা ম্যাচও মুছবে, তাই আগে দেখে নিন।', icon:'warning', showCancelButton:true, confirmButtonColor:'#FF5252', confirmButtonText:'হ্যাঁ, মুছো' });
+            if(!r.isConfirmed) return;
+            try {
+                const all = (await get(ref(db, 'matches'))).val() || {};
+                const del = {}; let n = 0;
+                Object.entries(all).forEach(([k, m]) => { if(k.startsWith('demo_') || (m && m.recurring === true)) { del[k] = null; n++; } });
+                if(n) await update(ref(db, 'matches'), del);
+                Swal.fire({icon:'success', title:'হয়ে গেছে', text:`${n}টা ডেমো ম্যাচ মুছে গেছে`});
             } catch(e) { Swal.fire('Error', e.message, 'error'); }
         };
 
