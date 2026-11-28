@@ -1,5 +1,6 @@
 // ARENA X ESPORTS - নিরাপদ সার্ভার (জয়েন + উইথড্র)
 const express = require('express');
+const crypto = require('crypto');
 const cors = require('cors');
 const zlib = require('zlib');
 const admin = require('firebase-admin');
@@ -12,6 +13,7 @@ admin.initializeApp({
 const db = admin.database();
 
 const app = express();
+app.set('trust proxy', 1);
 app.use(cors({ origin: process.env.ALLOWED_ORIGIN || '*' }));
 app.use(express.json({ limit: '10kb' }));
 
@@ -195,9 +197,39 @@ app.post('/device/register', auth, async (req, res) => {
   }
 });
 
+// ---------- অ্যাডমিন পিন লগইন ----------
+// পিনটা কোডে নেই। Render > Environment এ ADMIN_PIN নামে বসান (৫ বা ৬ ডিজিট)।
+// ঠিক পিন দিলে সার্ভার অ্যাডমিনের জন্য একটা গোপন লগইন টোকেন বানিয়ে দেয়।
+const ADMIN_PIN = String(process.env.ADMIN_PIN || '');
+const PIN_FAILS = new Map(); // ip -> { n, until }
+const isAdminUser = u => !!u && (u.admin === true || u.email === ADMIN_EMAIL);
+app.post('/admin/pin-login', async (req, res) => {
+  const rec = PIN_FAILS.get(req.ip) || { n: 0, until: 0 };
+  if (rec.until > Date.now()) return res.status(429).json({ error: 'অনেকবার ভুল হয়েছে, ১৫ মিনিট পরে চেষ্টা করুন' });
+  if (!/^\d{5,6}$/.test(ADMIN_PIN)) return res.status(500).json({ error: 'সার্ভারে ADMIN_PIN সেট করা নেই' });
+  const pin = String((req.body && req.body.pin) || '');
+  const h = v => crypto.createHash('sha256').update(v).digest();
+  if (!crypto.timingSafeEqual(h(pin), h(ADMIN_PIN))) {
+    rec.n++;
+    if (rec.n >= 5) { rec.n = 0; rec.until = Date.now() + 15 * 60000; }
+    PIN_FAILS.set(req.ip, rec);
+    return res.status(401).json({ error: 'ভুল পিন' });
+  }
+  PIN_FAILS.delete(req.ip);
+  try {
+    const u = await admin.auth().getUserByEmail(ADMIN_EMAIL);
+    const token = await admin.auth().createCustomToken(u.uid, { admin: true, email: ADMIN_EMAIL, email_verified: true });
+    res.json({ token });
+  } catch (e) {
+    console.error('pin login error', e);
+    res.status(500).json({ error: 'সার্ভারে সমস্যা' });
+  }
+});
+setInterval(() => { const t = Date.now(); for (const [k, v] of PIN_FAILS) if (v.until < t && v.n === 0) PIN_FAILS.delete(k); }, 3600000);
+
 // শুধু অ্যাডমিন ব্যান / আনব্যান করতে পারবে
 app.post('/admin/ban', auth, async (req, res) => {
-  if (req.user.email !== ADMIN_EMAIL) return res.status(403).json({ error: 'শুধু অ্যাডমিনের জন্য' });
+  if (!isAdminUser(req.user)) return res.status(403).json({ error: 'শুধু অ্যাডমিনের জন্য' });
   const uid = String(req.body.uid || '');
   const ban = req.body.ban === true;
   const reason = String(req.body.reason || '').trim().slice(0, 100);

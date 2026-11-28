@@ -2566,7 +2566,15 @@ setTimeout(function(){
         sessionStorage.setItem('dl_seen', '1');
         setTimeout(() => document.getElementById('dl-modal').classList.add('active'), 3600);
     }
-    if('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(()=>{});
+    if('serviceWorker' in navigator) {
+        navigator.serviceWorker.register('sw.js').catch(()=>{});
+        // নতুন ভার্সন এলে, অ্যাপ সবে খোলা থাকলে একবার রিলোড করে নতুনটা দেখাবে (লুপ হবে না)
+        navigator.serviceWorker.addEventListener('message', e => {
+            if(!e.data || e.data.type !== 'NEW_VERSION' || performance.now() > 20000) return;
+            try { if(sessionStorage.getItem('ax_reloaded')) return; sessionStorage.setItem('ax_reloaded', '1'); } catch(_) {}
+            location.reload();
+        });
+    }
     // ---------- ডিভাইস আইডি (localStorage + cookie + IndexedDB, তিন জায়গায় জমা থাকে) ----------
     const DID_KEY = 'arenax_did', DID_RE = /^[\w-]{16,64}$/;
     let _did = '';

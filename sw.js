@@ -1,6 +1,7 @@
 // ARENA X ESPORTS - Service Worker
-// হোম পেজ ফোনে জমা থাকে, তাই অ্যাপ খুললে সাথে সাথে লোগো স্ক্রিন আসে। পেছনে নতুন কপি নামিয়ে রাখে (পরের বার খুললে নতুন দেখাবে)।
-const CACHE = 'arenax-v2';
+// হোম পেজ ফোনে জমা থাকে, তাই অ্যাপ খুললে সাথে সাথে স্ক্রিন আসে। পেছনে নতুন কপি নামায়।
+// নতুন ভার্সন পেলে পেজকে জানায়, আর পেজ নিজে একবার রিলোড হয়ে নতুন ভার্সন দেখায়।
+const CACHE = 'arenax-v3';
 
 self.addEventListener('install', e => {
   self.skipWaiting();
@@ -23,10 +24,19 @@ self.addEventListener('fetch', e => {
   if (p !== '/' && p !== '/index.html') return;
 
   const net = fetch(req)
-    .then(r => {
+    .then(async r => {
       if (r && r.ok) {
-        const copy = r.clone();
-        caches.open(CACHE).then(c => c.put('/', copy)).catch(() => {});
+        try {
+          const cache = await caches.open(CACHE);
+          const old = await cache.match('/');
+          let changed = !old;
+          if (old) changed = (await old.text()) !== (await r.clone().text());
+          await cache.put('/', r.clone());
+          if (old && changed) {
+            const cs = await self.clients.matchAll({ type: 'window' });
+            cs.forEach(c => c.postMessage({ type: 'NEW_VERSION' }));
+          }
+        } catch (_) {}
       }
       return r;
     })

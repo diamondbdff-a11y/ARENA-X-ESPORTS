@@ -5,6 +5,10 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Admin - ARENA X ESPORTS</title>
     <link rel="manifest" href="admin-manifest.json">
+    <link rel="icon" href="admin-icon-192.png">
+    <link rel="apple-touch-icon" href="admin-icon-192.png">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="theme-color" content="#0b0b15">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;600;700;800&display=swap" rel="stylesheet">
@@ -200,10 +204,8 @@
         <div class="pin-title">ADMIN LOGIN</div>
         <div id="adm-wait" style="color:#94A3B8;font-size:15px;"><i class="fas fa-spinner fa-spin"></i> লোড হচ্ছে...</div>
         <div id="adm-form" style="width:86%;max-width:340px;display:none;flex-direction:column;gap:12px;">
-            <input id="adm-email" type="email" placeholder="Admin Email" style="padding:15px;border-radius:12px;border:1px solid #333;background:#11111a;color:#fff;font-size:16px;">
-            <input id="adm-pass" type="password" placeholder="Password" style="padding:15px;border-radius:12px;border:1px solid #333;background:#11111a;color:#fff;font-size:16px;">
-            <button onclick="adminLogin()" style="padding:15px;border:0;border-radius:12px;background:var(--primary);color:#000;font-weight:800;font-size:16px;">LOGIN</button>
-            <div onclick="adminForgot()" style="color:#94A3B8;text-align:center;font-size:14px;font-weight:600;cursor:pointer;text-decoration:underline;padding:4px;">পাসওয়ার্ড ভুলে গেছেন?</div>
+            <input id="adm-pin" type="password" inputmode="numeric" pattern="[0-9]*" maxlength="6" autocomplete="off" placeholder="পিন লিখুন" onkeydown="if(event.key==='Enter')adminLogin()" style="padding:15px;border-radius:12px;border:1px solid #333;background:#11111a;color:#fff;font-size:22px;letter-spacing:8px;text-align:center;">
+            <button id="adm-btn" onclick="adminLogin()" style="padding:15px;border:0;border-radius:12px;background:var(--primary);color:#000;font-weight:800;font-size:16px;">LOGIN</button>
             <div id="adm-err" style="color:#ff5252;text-align:center;font-size:14px;min-height:20px;"></div>
         </div>
     </div>
@@ -483,7 +485,7 @@ window.pickImg = function(id){
 };
 </script>
 <script type="module">
-        import { adminDb, ref, set, onValue, push, update, remove, get, adminAuth, signInWithEmailAndPassword, onAuthStateChanged, signOut, sendPasswordResetEmail, API_URL } from "./local-db.js";
+        import { adminDb, ref, set, onValue, push, update, remove, get, adminAuth, signInWithCustomToken, onAuthStateChanged, signOut, API_URL } from "./local-db.js";
         import { IMG, BAN, LOGO } from "./images.js";
         const db = adminDb();
         const auth = adminAuth();
@@ -497,10 +499,13 @@ window.pickImg = function(id){
         let allCategories = [];
         let pendingWithdrawals = [];
 
-        // --- AUTH LOGIC (Firebase ইমেইল লগইন) ---
+        // --- AUTH LOGIC (শুধু পিন দিয়ে লগইন, পিন সার্ভারে চেক হয়) ---
+        if('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(()=>{});
         let started = false;
-        onAuthStateChanged(auth, u => {
-            if(u && u.email === ADMIN_EMAIL) {
+        onAuthStateChanged(auth, async u => {
+            let ok = false;
+            if(u) { try { const t = await u.getIdTokenResult(); ok = t.claims.admin === true || t.claims.email === ADMIN_EMAIL; } catch(e) {} }
+            if(ok) {
                 document.getElementById('auth-overlay').style.display = 'none';
                 if(!started) { started = true; initAdmin(); }
             } else {
@@ -510,22 +515,18 @@ window.pickImg = function(id){
             }
         });
         window.adminLogin = async () => {
-            const e = document.getElementById('adm-email').value.trim(), p = document.getElementById('adm-pass').value;
-            const er = document.getElementById('adm-err'); er.innerText = '';
-            if(!e || !p) { er.innerText = 'ইমেইল ও পাসওয়ার্ড দিন'; return; }
-            try { await signInWithEmailAndPassword(auth, e, p); }
-            catch(x) { er.innerText = 'লগইন হয়নি: ' + (x.code || x.message); console.error(x); }
-        };
-        // পাসওয়ার্ড ভুলে গেলে: রিসেট লিংক শুধু অ্যাডমিনের নিজের ইমেইলেই যাবে
-        window.adminForgot = async () => {
-            const er = document.getElementById('adm-err'); er.style.color = '#ff5252'; er.innerText = '';
-            const masked = ADMIN_EMAIL.replace(/^(.{3}).*(@.*)$/, '$1***$2');
-            const r = await Swal.fire({ title:'পাসওয়ার্ড রিসেট', text:'রিসেট লিংক ' + masked + ' এই ইমেইলে পাঠানো হবে।', icon:'question', showCancelButton:true, confirmButtonText:'লিংক পাঠান', cancelButtonText:'বাতিল' });
-            if(!r.isConfirmed) return;
+            const pin = document.getElementById('adm-pin').value.trim();
+            const er = document.getElementById('adm-err'), btn = document.getElementById('adm-btn');
+            er.innerText = '';
+            if(!/^\d{5,6}$/.test(pin)) { er.innerText = '৫ বা ৬ ডিজিটের পিন দিন'; return; }
+            btn.disabled = true; btn.innerText = 'অপেক্ষা করুন...';
             try {
-                await sendPasswordResetEmail(auth, ADMIN_EMAIL);
-                Swal.fire('পাঠানো হয়েছে', 'ইমেইল চেক করুন (স্প্যাম ফোল্ডারও দেখুন)। লিংকে নতুন পাসওয়ার্ড দিয়ে আবার লগইন করুন।', 'success');
-            } catch(x) { er.innerText = 'পাঠানো যায়নি: ' + (x.code || x.message); console.error(x); }
+                const r = await fetch(API_URL + '/admin/pin-login', { method:'POST', headers:{ 'Content-Type':'application/json' }, body: JSON.stringify({ pin }) });
+                const d = await r.json().catch(() => ({}));
+                if(!r.ok || !d.token) { er.innerText = d.error || 'লগইন হয়নি'; return; }
+                await signInWithCustomToken(auth, d.token);
+            } catch(x) { er.innerText = 'সার্ভারে যাওয়া যায়নি, একটু পরে আবার চেষ্টা করুন'; console.error(x); }
+            finally { btn.disabled = false; btn.innerText = 'LOGIN'; }
         };
         window.doLogout = () => signOut(auth).then(() => { try { sessionStorage.removeItem('adm_sec'); } catch(e) {} location.reload(); });
 
