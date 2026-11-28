@@ -1560,6 +1560,19 @@
     .th-bal { display:flex; align-items:center; gap:5px; background:#fff; border:1.5px solid #e53935; color:#e53935; border-radius:18px; padding:5px 10px; font-weight:900; font-size:13px; cursor:pointer; white-space:nowrap; }
     .btn-refresh { flex:0 0 42px; width:42px; border:1px solid #1565C0; color:#1565C0; background:#fff; border-radius:4px; font-size:15px; cursor:pointer; display:flex; align-items:center; justify-content:center; }
     .btn-refresh:disabled { opacity:.6; }
+    /* রিফ্রেশ বাটনের লোডিং দেখানো: উপরে বার + স্ক্রিন হালকা ঝাপসা + মেসেজ */
+    #refresh-bar { position:fixed; top:0; left:0; right:0; height:3px; z-index:9990; overflow:hidden; opacity:0; pointer-events:none; transition:opacity .2s; }
+    #refresh-bar::after { content:""; position:absolute; top:0; bottom:0; width:40%; background:linear-gradient(90deg,transparent,#FF9800,transparent); animation:rbar 0.9s linear infinite; }
+    @keyframes rbar { from { left:-40%; } to { left:100%; } }
+    body.refreshing #refresh-bar { opacity:1; }
+    #main-content .app-section.active { transition:opacity .25s ease; }
+    body.refreshing #main-content .app-section.active { opacity:.45; }
+    body.refresh-done #main-content .app-section.active { animation:rdone .35s ease-out; }
+    @keyframes rdone { from { opacity:.45; transform:translateY(8px); } to { opacity:1; transform:none; } }
+    #refresh-toast { position:fixed; top:64px; left:50%; transform:translate(-50%,-12px); background:#222; color:#fff; padding:9px 18px; border-radius:20px; font-size:13px; font-weight:600; z-index:9991; opacity:0; pointer-events:none; transition:opacity .2s, transform .2s; white-space:nowrap; box-shadow:0 4px 14px rgba(0,0,0,.3); }
+    #refresh-toast.show { opacity:1; transform:translate(-50%,0); }
+    #refresh-toast.ok { background:#2E7D32; }
+    #refresh-toast.err { background:#C62828; }
     .mc-copy-row { display:flex; gap:10px; padding:0 10px 12px; }
     .mc-copy-item { flex:1; min-width:0; display:flex; align-items:center; justify-content:space-between; gap:6px; background:#f1f8e9; border:1px dashed #388E3C; border-radius:6px; padding:6px 8px; }
     .mc-copy-txt { min-width:0; display:flex; flex-direction:column; line-height:1.2; }
@@ -1698,6 +1711,8 @@
     </div>
 </div>
 
+<div id="refresh-bar"></div>
+<div id="refresh-toast"></div>
 <main id="main-content" style="display:none;">
     <header class="top-header">
         <img id="th-logo" alt="">
@@ -2385,14 +2400,28 @@ setTimeout(function(){
     window.refreshApp = async function(btn) {
         if (window.__refreshing) return;
         window.__refreshing = true;
+        const toast = document.getElementById('refresh-toast');
+        let hideT;
+        const say = (msg, cls, ms) => {
+            if (!toast) return;
+            clearTimeout(hideT);
+            toast.textContent = msg;
+            toast.className = 'show' + (cls ? ' ' + cls : '');
+            if (ms) hideT = setTimeout(() => { toast.className = ''; }, ms);
+        };
+        const limit = (pr, ms) => Promise.race([pr, new Promise((_, rej) => setTimeout(() => rej(new Error('timeout')), ms))]);
         try { if (btn) btn.classList.add('spin'); } catch(e) {}
+        document.body.classList.remove('refresh-done');
+        document.body.classList.add('refreshing');
+        say('রিফ্রেশ হচ্ছে...');
         const t0 = Date.now();
+        let ok = true;
         try {
-            const [c, m, p] = await Promise.all([
+            const [c, m, p] = await limit(Promise.all([
                 get(ref(db, 'categories')),
                 get(ref(db, 'matches')),
                 get(ref(db, 'match_participants')).catch(() => null)
-            ]);
+            ]), 10000);
             const cd = c.val();
             if (cd) { renderCats(cd); try { localStorage.setItem('cache_cats', JSON.stringify(cd)); } catch(e) {} }
             rawMatches = [];
@@ -2404,9 +2433,20 @@ setTimeout(function(){
             if (document.getElementById('matches-view').classList.contains('active')) filterMatchTab(currentMatchFilter);
             if (document.getElementById('tab-mymatches-view').classList.contains('active')) loadMyMatches();
             if (document.getElementById('tab-result-view').classList.contains('active')) loadResults();
-        } catch (e) {}
-        const wait = Math.max(0, 700 - (Date.now() - t0));
-        setTimeout(() => { try { if (btn) btn.classList.remove('spin'); } catch(e) {} window.__refreshing = false; }, wait);
+        } catch (e) { ok = false; }
+        const wait = Math.max(0, 900 - (Date.now() - t0));
+        setTimeout(() => {
+            try { if (btn) btn.classList.remove('spin'); } catch(e) {}
+            document.body.classList.remove('refreshing');
+            if (ok) {
+                document.body.classList.add('refresh-done');
+                say('✓ আপডেট হয়েছে', 'ok', 1400);
+                setTimeout(() => document.body.classList.remove('refresh-done'), 500);
+            } else {
+                say('নেট সমস্যা, আবার চেষ্টা করুন', 'err', 2200);
+            }
+            window.__refreshing = false;
+        }, wait);
     };
     window.copyText = copyText;
     window.openPrizePool = openPrizePool;
